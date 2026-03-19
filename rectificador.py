@@ -391,10 +391,9 @@ def procesar_plano(plano: dict) -> dict:
     lineas = rectificar_ejes(lineas)
     lineas, nodos = fusionar_intersecciones(lineas, nodos)
 
-    # Paso 4: dimensionamiento (solo si se proporcionó un caudal)
-    if caudal_scfm and caudal_scfm > 0:
-        from dimensionador import dimensionar_lineas
-        lineas = dimensionar_lineas(lineas, caudal_scfm, tipo_red)
+    # Paso 4: dimensionamiento (siempre se calcula para tener longitudes en el BOM)
+    from dimensionador import dimensionar_lineas
+    lineas = dimensionar_lineas(lineas, caudal_scfm or 0, tipo_red or "lineal")
 
     # Paso 5: detección de piezas (codos, tes, cruces, uniones, tapones)
     from detector_piezas import detectar_piezas

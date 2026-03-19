@@ -782,7 +782,8 @@
         <!-- Canvas area -->
         <div id="canvas-wrapper">
             <canvas id="mainCanvas"></canvas>
-            <input type="text" id="lengthInput" />
+            <input type="text" id="lengthInput" style="position: absolute; display: none; z-index: 100; font-size: 14px; width: 60px; text-align: center; border: 1px solid #1A4A8A; background: #0F3460; color: white; border-radius: 4px; padding: 4px;" />
+            <input type="text" id="floating-dim-input" style="position: absolute; display: none; z-index: 100; font-size: 14px; width: 60px; text-align: center; border: 1px dashed #FF9800; background: #0F3460; color: #FF9800; border-radius: 4px; padding: 4px;" />
             <div id="mode-indicator" class="hidden">Modo: —</div>
 
             <!-- SVG Modal Overlay -->
@@ -969,17 +970,20 @@
                 <button class="tool-btn" id="btn-acotar" title="Acotar: mide la distancia entre dos puntos">
                     📏 Acotar
                 </button>
+                <button class="tool-btn" id="btn-borrar" title="Eliminar elementos del plano" style="margin-top: 5px; border-color: #D32F2F;">
+                    🗑 Borrar
+                </button>
             </div>
 
             <!-- Fondo / Blueprint -->
             <div class="panel-section">
                 <label>Plano de Fondo</label>
                 <div style="margin-bottom: 8px;">
-                    <button class="action-btn" id="btn-load-bg" title="Cargar imagen de plano"
+                    <button class="action-btn" id="btn-load-bg" title="Cargar imagen (PNG, JPG) o dibujo vectorial (DXF)"
                         style="margin-bottom: 4px; border-style: dashed;">
-                        🖼️ Cargar Plano Fondo
+                        🖼️ Cargar Plano Fondo (Imagen / DXF)
                     </button>
-                    <input type="file" id="bg-input" accept="image/png, image/jpeg, image/webp"
+                    <input type="file" id="bg-input" accept="image/png, image/jpeg, image/webp, .dxf"
                         style="display: none;" />
                 </div>
                 <!-- Controles de fondo (Ocultos por defecto) -->

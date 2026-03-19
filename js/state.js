@@ -38,6 +38,7 @@ export const state = {
     bgUrl: null,
     bgScale: 1.0,
     bgOpacity: 0.5,
+    bgLines: [], // Líneas vectoriales de fondo (ej: de un DXF)
 
     // UI Cache 
     canvasRect: null,

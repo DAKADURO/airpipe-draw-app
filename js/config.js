@@ -23,4 +23,5 @@ export const MODO = {
     CONSUMO: 'consumo',
     VALVULA: 'valvula',
     ACOTAR: 'acotar',
+    BORRAR: 'borrar',
 };

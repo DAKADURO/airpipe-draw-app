@@ -32,6 +32,19 @@ export function getSnapPoints() {
             puntos.push({ x: accion.datos.x, y: accion.datos.y, tipo: 'extremo' });
         }
     }
+
+    // Añadir puntos de las líneas de fondo (DXF)
+    if (state.bgLines && state.bgLines.length > 0) {
+        for (const l of state.bgLines) {
+            const sx = l.x1 * state.bgScale;
+            const sy = l.y1 * state.bgScale;
+            const ex = l.x2 * state.bgScale;
+            const ey = l.y2 * state.bgScale;
+            puntos.push({ x: sx, y: sy, tipo: 'extremo' });
+            puntos.push({ x: ex, y: ey, tipo: 'extremo' });
+        }
+    }
+
     state._snapPointsCache = puntos;
     return puntos;
 }
@@ -199,5 +212,50 @@ export function getCotaAt(wx, wy) {
             return { cota: c, midX, midY };
         }
     }
+    return null;
+}
+
+/**
+ * Encuentra un elemento en el historial que coincida con la posición (wx, wy)
+ * con una tolerancia basada en la escala actual.
+ */
+export function findItemAt(wx, wy) {
+    const s = state.viewState.scale;
+    
+    // 1. Probar Cotas primero (hit-box de texto/centro)
+    const cotaHit = getCotaAt(wx, wy);
+    if (cotaHit) return cotaHit.cota;
+
+    // 2. Probar Nodos (Compresor / Consumo)
+    const radioNodoS = (18 / s); // Tolerancia en píxeles de pantalla convertidos a mundo
+    for (const a of state.historial) {
+        if (a.tipo === 'nodo') {
+            const d = Math.hypot(wx - a.datos.x, wy - a.datos.y);
+            if (d <= radioNodoS) return a;
+        }
+    }
+
+    // 3. Probar Válvulas
+    const radioValvulaS = (15 / s);
+    for (const a of state.historial) {
+        if (a.tipo === 'valvula_manual') {
+            const d = Math.hypot(wx - a.datos.x, wy - a.datos.y);
+            if (d <= radioValvulaS) return a;
+        }
+    }
+
+    // 4. Probar Líneas (Tuberías)
+    const snapLinea = getLineSnap(wx, wy);
+    if (snapLinea) {
+        // Buscamos el objeto exacto en el historial
+        return state.historial.find(a => 
+            a.tipo === 'linea' && 
+            a.datos.x1 === snapLinea.linea.x1 && 
+            a.datos.y1 === snapLinea.linea.y1 &&
+            a.datos.x2 === snapLinea.linea.x2 && 
+            a.datos.y2 === snapLinea.linea.y2
+        );
+    }
+
     return null;
 }

@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../ALMACEN 1.0"
+		}
+	],
+	"settings": {
+		"powershell.cwd": "DRAW 1.0"
+	}
+}

@@ -1,0 +1,148 @@
+"""
+projects_db.py — Módulo de persistencia de proyectos para AIRpipe DRAW 1.0
+Usa SQLite para almacenar planos con su historial completo.
+"""
+
+import sqlite3
+import json
+import os
+from datetime import datetime
+
+DB_PATH = os.path.join(os.path.dirname(__file__), 'projects.db')
+
+
+def _get_conn():
+    """Crea una conexión a la base de datos."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    """Inicializa las tablas si no existen."""
+    conn = _get_conn()
+    # Tabla de Usuarios
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    # Tabla de Proyectos (con user_id)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            client TEXT DEFAULT '',
+            data TEXT NOT NULL,
+            user_id INTEGER,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    
+    # Migración simple: Añadir user_id si no existe
+    try:
+        conn.execute("ALTER TABLE projects ADD COLUMN user_id INTEGER REFERENCES users(id)")
+    except sqlite3.OperationalError:
+        pass # La columna ya existe
+        
+    conn.commit()
+    conn.close()
+
+
+def list_projects(user_id: int = None):
+    """Devuelve la lista de proyectos de un usuario."""
+    conn = _get_conn()
+    if user_id:
+        rows = conn.execute(
+            "SELECT id, name, client, created_at, updated_at FROM projects WHERE user_id = ? ORDER BY updated_at DESC",
+            (user_id,)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, name, client, created_at, updated_at FROM projects ORDER BY updated_at DESC"
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_project(project_id: int):
+    """Devuelve un proyecto completo por su ID."""
+    conn = _get_conn()
+    row = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    conn.close()
+    if row is None:
+        return None
+    result = dict(row)
+    result['data'] = json.loads(result['data'])
+    return result
+
+
+def save_project(name: str, client: str, data: dict, user_id: int = None):
+    """Crea un nuevo proyecto vinculado a un usuario."""
+    now = datetime.now().isoformat()
+    conn = _get_conn()
+    cursor = conn.execute(
+        "INSERT INTO projects (name, client, data, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (name, client, json.dumps(data), user_id, now, now)
+    )
+    conn.commit()
+    project_id = cursor.lastrowid
+    conn.close()
+    return project_id
+
+
+def update_project(project_id: int, name: str, client: str, data: dict):
+    """Actualiza un proyecto existente."""
+    now = datetime.now().isoformat()
+    conn = _get_conn()
+    conn.execute(
+        "UPDATE projects SET name = ?, client = ?, data = ?, updated_at = ? WHERE id = ?",
+        (name, client, json.dumps(data), now, project_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_project(project_id: int):
+    """Elimina un proyecto."""
+    # Nota: Aquí se podría validar el user_id también para seguridad extra
+    conn = _get_conn()
+    conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+    conn.commit()
+    conn.close()
+
+
+# --- User Management ---
+
+def create_user(email, password_hash):
+    """Registra un nuevo usuario."""
+    now = datetime.now().isoformat()
+    conn = _get_conn()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
+            (email, password_hash, now)
+        )
+        conn.commit()
+        user_id = cursor.lastrowid
+        return user_id
+    except sqlite3.IntegrityError:
+        return None # Email ya existe
+    finally:
+        conn.close()
+
+def get_user_by_email(email):
+    """Busca un usuario por email."""
+    conn = _get_conn()
+    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# Inicializar la base de datos al importar el módulo
+init_db()

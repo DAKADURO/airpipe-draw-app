@@ -1,5 +1,5 @@
 import { initCanvas, redraw } from './drawing.js';
-import { setupCanvasEvents } from './canvas_events.js';
+import { initCanvasEvents } from './canvas_events.js';
 import { setupUI } from './ui.js';
 import { updateAuthUI } from './api.js';
 
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const { setStatus } = setupUI(canvas);
     
     // 4. Hook up geometric mouse calculations on the canvas zone
-    setupCanvasEvents(canvas, wrapper, floatingDimInput, lengthInput, setStatus);
+    initCanvasEvents(canvas, wrapper, floatingDimInput, lengthInput, setStatus);
 
     // 5. Present the canvas to the user
     redraw();

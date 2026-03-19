@@ -1,6 +1,6 @@
 import { state, invalidateSnapCache, updateCanvasRect } from './state.js';
 import { MAX_CAMERA_OFFSET, MODO, PIXELS_POR_METRO } from './config.js';
-import { toWorld, toScreen, getSnapPoint, getSmartSnap, getAngleSnapPoint, getLineSnap, getCotaAt } from './math.js';
+import { toWorld, toScreen, getSnapPoint, getSmartSnap, getAngleSnapPoint, getLineSnap, getCotaAt, findItemAt } from './math.js';
 import { redraw, scheduleRedraw } from './drawing.js';
 
 export function aplicarNuevaLongitud(cota, nuevoMetros, setStatusCb) {
@@ -107,6 +107,7 @@ export function aplicarNuevaLongitud(cota, nuevoMetros, setStatusCb) {
 export function initCanvasEvents(canvas, wrapper, floatingDimInput, lengthInput, setStatusCb) {
 
     function resizeCanvas() {
+        if (!wrapper) return;
         canvas.width = wrapper.clientWidth;
         canvas.height = wrapper.clientHeight;
         updateCanvasRect(canvas);
@@ -114,8 +115,8 @@ export function initCanvasEvents(canvas, wrapper, floatingDimInput, lengthInput,
     }
     window.addEventListener('resize', resizeCanvas);
     
-    // Configuración Inicial para que tome la zona desde el arranque
-    updateCanvasRect(canvas);
+    // Configuración Inicial para que tome la zona y resolución reales desde el arranque
+    resizeCanvas();
 
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
@@ -183,6 +184,20 @@ export function initCanvasEvents(canvas, wrapper, floatingDimInput, lengthInput,
         const worldPos = toWorld(rawX, rawY);
         let x = worldPos.x;
         let y = worldPos.y;
+        
+        if (state.modoActual === MODO.BORRAR) {
+            const itemToRemove = findItemAt(x, y);
+            if (itemToRemove) {
+                const index = state.historial.indexOf(itemToRemove);
+                if (index > -1) {
+                    state.historial.splice(index, 1);
+                    invalidateSnapCache();
+                    redraw();
+                    if (setStatusCb) setStatusCb("Elemento eliminado.");
+                    return;
+                }
+            }
+        }
 
         if (state.modoActual === MODO.NINGUNO || (state.modoActual === MODO.ACOTAR && !state.cotaInicio)) {
             const hit = getCotaAt(x, y);

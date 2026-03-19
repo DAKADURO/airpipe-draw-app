@@ -1,7 +1,7 @@
 import { state, invalidateSnapCache } from './state.js';
 import { MODO, PIXELS_POR_METRO, API_BASE } from './config.js';
 import { redraw, scheduleRedraw } from './drawing.js';
-import { procesarPlano, saveProject, getProjects, getProject, deleteProject, login, register } from './api.js';
+import { procesarPlano, saveProject, getProjects, getProject, deleteProject, login, register, downloadPDF } from './api.js';
 
 export function setupUI(canvas) {
     const statusText = document.getElementById('status-text');
@@ -31,7 +31,7 @@ export function setupUI(canvas) {
     }
 
     function setActiveButton(btnKey) {
-        ['btn-line', 'btn-compresor', 'btn-consumo', 'btn-valvula', 'btn-acotar'].forEach(id => {
+        ['btn-line', 'btn-compresor', 'btn-consumo', 'btn-valvula', 'btn-acotar', 'btn-borrar'].forEach(id => {
             const b = document.getElementById(id);
             if (b) b.classList.remove('active');
         });
@@ -59,7 +59,8 @@ export function setupUI(canvas) {
                 [MODO.COMPRESOR]: 'Clic en el canvas para colocar un Compresor.',
                 [MODO.CONSUMO]: 'Clic en el canvas para colocar un Punto de Consumo.',
                 [MODO.VALVULA]: 'Clic sobre una tubería para colocar una Válvula de aislamiento.',
-                [MODO.ACOTAR]: 'Clic en el primer punto a acotar. Segundo clic para terminar.',
+                [MODO.ACOTAR]: 'Clic en el primer punto a acotar. Segundo clic para generar la cota.',
+                [MODO.BORRAR]: 'MODO BORRADOR: Haz clic sobre cualquier elemento para eliminarlo.',
             };
             setStatus(statusMap[modo] || '');
         }
@@ -78,6 +79,9 @@ export function setupUI(canvas) {
     if (btnValvula) btnValvula.onclick = () => setModo(MODO.VALVULA, 'btn-valvula');
     const btnAcotar = document.getElementById('btn-acotar');
     if (btnAcotar) btnAcotar.onclick = () => setModo(MODO.ACOTAR, 'btn-acotar');
+
+    const btnBorrar = document.getElementById('btn-borrar');
+    if (btnBorrar) btnBorrar.onclick = () => setModo(MODO.BORRAR, 'btn-borrar');
 
     const btnUndo = document.getElementById('btn-undo');
     if (btnUndo) btnUndo.onclick = () => {
@@ -224,6 +228,73 @@ export function setupUI(canvas) {
         bomModal.classList.remove('hidden');
     };
     document.getElementById('btn-close-bom').onclick = () => bomModal.classList.add('hidden');
+
+    const triggerPDFDownload = async () => {
+        if (!state.proyectoActualId) {
+            alert("⚠️ Debes guardar tu proyecto en la nube al menos una vez antes de poder generar el Informe PDF interactivo.");
+            return;
+        }
+        setStatus('Generando PDF en la nube, por favor espera...');
+        const btn1 = document.getElementById('btn-download-pdf');
+        const btn2 = document.getElementById('btn-download-pdf-bom');
+        if (btn1) btn1.disabled = true;
+        if (btn2) btn2.disabled = true;
+
+        try {
+            // Capturar el dibujo actual del canvas como imagen para el PDF
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Fondo oscuro para que se vea igual que en la app
+            tempCtx.fillStyle = '#0f172a';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            
+            // Dibujar el contenido actual (incluyendo el fondo si existe)
+            if (state.bgImageObj) {
+                tempCtx.globalAlpha = state.bgOpacity;
+                const sw = state.bgImageObj.width;
+                const sh = state.bgImageObj.height;
+                tempCtx.drawImage(state.bgImageObj, 0, 0, sw, sh, state.bgOffsetX, state.bgOffsetY, sw * state.bgScale, sh * state.bgScale);
+                tempCtx.globalAlpha = 1.0;
+            }
+            
+            // Dibujar las tuberías y piezas (usamos la función redraw pero sobre el tempCtx)
+            // Para simplicidad, podemos usar el canvas principal si no tiene UI encima, 
+            // pero mejor generar un dataURL limpio.
+            const drawingDataUrl = canvas.toDataURL('image/png');
+
+            const resp = await downloadPDF(state.proyectoActualId, drawingDataUrl);
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+                throw new Error(data.error || 'Error de procesamiento en el servidor');
+            }
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Reporte_AIRpipe_${state.proyectoActualName || 'Plano'}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            setStatus('PDF generado y descargado exitosamente.');
+        } catch (err) {
+            alert("Error al generar el PDF: " + err.message);
+            setStatus('Error al generar PDF: ' + err.message);
+        } finally {
+            if (btn1) btn1.disabled = false;
+            if (btn2) btn2.disabled = false;
+        }
+    };
+
+    const btnPdf1 = document.getElementById('btn-download-pdf');
+    if (btnPdf1) btnPdf1.onclick = triggerPDFDownload;
+    
+    const btnPdf2 = document.getElementById('btn-download-pdf-bom');
+    if (btnPdf2) btnPdf2.onclick = triggerPDFDownload;
+
     
     // ── Plano de Fondo ──
     const bgInput = document.getElementById('bg-input');
@@ -251,14 +322,50 @@ export function setupUI(canvas) {
     bgInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            state.bgBase64 = event.target.result;
-            state.bgUrl = null;
-            cargarImagenFondo(state.bgBase64);
-        };
-        reader.readAsDataURL(file);
+
+        if (file.name.toLowerCase().endsWith('.dxf')) {
+            cargarDXFFondo(file);
+        } else {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                state.bgLines = []; // Limpiar líneas si se sube imagen
+                cargarImagenFondo(event.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
     });
+
+    async function cargarDXFFondo(file) {
+        try {
+            setStatus('Procesando dibujo DXF...');
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const resp = await fetch('/processing/dxf-to-json', {
+                method: 'POST',
+                body: formData
+            });
+
+            const res = await resp.json();
+            if (res.lines) {
+                state.bgLines = res.lines;
+                state.bgImageObj = null; // Limpiar imagen si se sube DXF
+                state.bgBase64 = null;
+                
+                // Mostrar controles
+                if (bgControls) bgControls.style.display = 'block';
+                
+                invalidateSnapCache();
+                redraw();
+                setStatus(`Dibujo DXF cargado: ${res.count} líneas.`);
+            } else {
+                alert("Error al procesar el DXF: " + (res.error || "Formato no soportado"));
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error de conexión al servidor para procesar DXF.");
+        }
+    }
 
     document.getElementById('bg-opacity').addEventListener('input', (e) => {
         state.bgOpacity = e.target.value / 100;
@@ -319,6 +426,9 @@ export function setupUI(canvas) {
     // ── Project Saving ──
     function serializeProjectData() {
         return {
+            lineas: state.historial.filter(a => a.tipo === 'linea').map(a => a.datos),
+            nodos: state.historial.filter(a => a.tipo === 'nodo').map(a => a.datos),
+            valvulas_manuales: state.historial.filter(a => a.tipo === 'valvula_manual').map(a => a.datos),
             historial: state.historial,
             viewState: state.viewState,
             tipo_red: document.getElementById('select-tipo-red').value,
@@ -326,7 +436,8 @@ export function setupUI(canvas) {
             bgBase64: state.bgBase64,
             bgUrl: state.bgUrl,
             bgOpacity: state.bgOpacity,
-            bgScale: state.bgScale
+            bgScale: state.bgScale,
+            bgLines: state.bgLines
         };
     }
 
@@ -386,6 +497,9 @@ export function setupUI(canvas) {
 
     // ── Open Project ──
     function restoreProjectData(data) {
+        state.lineas = data.lineas || [];
+        state.nodos = data.nodos || [];
+        state.valvulasManuales = data.valvulas_manuales || [];
         state.historial = data.historial || [];
         invalidateSnapCache();
         if (data.viewState) {
@@ -396,15 +510,28 @@ export function setupUI(canvas) {
         if (data.tipo_red) document.getElementById('select-tipo-red').value = data.tipo_red;
         if (data.caudal_scfm) document.getElementById('input-caudal').value = data.caudal_scfm;
 
-        if (data.bgBase64 || data.bgUrl) {
-            state.bgBase64 = data.bgBase64 || null;
-            state.bgUrl = data.bgUrl || null;
-            state.bgOpacity = data.bgOpacity !== undefined ? data.bgOpacity : 0.5;
-            state.bgScale = data.bgScale !== undefined ? data.bgScale : 1.0;
+        // Restore background data
+        state.bgBase64 = data.bgBase64 || null;
+        state.bgUrl = data.bgUrl || null;
+        state.bgOpacity = data.bgOpacity !== undefined ? data.bgOpacity : 0.5;
+        state.bgScale = data.bgScale !== undefined ? data.bgScale : 1.0;
+        state.bgLines = data.bgLines || []; // Load bgLines
+
+        if (state.bgLines && state.bgLines.length > 0) {
+            // If DXF lines are present, clear image data
+            state.bgImageObj = null;
+            state.bgBase64 = null;
+            state.bgUrl = null;
+            if (bgControls) bgControls.style.display = 'block';
+        } else if (state.bgBase64 || state.bgUrl) {
+            // If image data is present, clear DXF lines
+            state.bgLines = [];
             cargarImagenFondo(state.bgBase64 || state.bgUrl); 
         } else {
+            // No background data, remove any existing
             document.getElementById('btn-remove-bg').click();
         }
+
         state.resultadosCalculo = null;
         state.piezasCalculo = null;
         state.valvulasCalculo = null;

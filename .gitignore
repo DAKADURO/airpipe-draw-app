@@ -1,33 +1,12 @@
-# Environments
 .venv/
-env/
-venv/
-ENV/
-
-# Python caching
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-
-# Visual Studio Code
-.vscode/
-*.code-workspace
-
-# Local Databases and Uploads
-*.db
-projects.db
-projects.db.backup
-app.db
+*.pyc
 instance/
-server_uploads/
-
-# Logging
-*.log
-
-# Temp files
-test_output.txt
-test_svg_output.txt
-test_detector_output.txt
-canvas.js.backup
-projects_db.py.backup
+server_uploads/*
+!server_uploads/.gitkeep
+ngrok.log
+ngrok_url.txt
+test_*.py
+.DS_Store
+*.db
+.pytest_cache/

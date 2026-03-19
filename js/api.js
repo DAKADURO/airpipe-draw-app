@@ -101,3 +101,12 @@ export async function deleteProject(id) {
     });
     return resp;
 }
+
+export async function downloadPDF(projectId, bgBase64 = null) {
+    const resp = await fetch(`${API_BASE}/projects/${projectId}/pdf`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ imagen: bgBase64 })
+    });
+    return resp;
+}

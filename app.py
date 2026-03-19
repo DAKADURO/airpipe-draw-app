@@ -22,9 +22,9 @@ else:
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "airpipe-secret-key-change-me")
 jwt = JWTManager(app)
 
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
-
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/app.db'
+import os
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'app.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)

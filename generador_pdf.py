@@ -102,4 +102,4 @@ def generar_reporte_pdf(proyecto_nombre, cliente, bom, imagen_b64=None):
     agregar_seccion("ACCESORIOS", bom.get("accesorios", []))
     agregar_seccion("VÁLVULAS", bom.get("valvulas", []))
 
-    return pdf.output(dest='S')
+    return bytes(pdf.output())

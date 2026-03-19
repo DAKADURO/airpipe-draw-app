@@ -139,16 +139,16 @@ def export_pdf(project_id):
         imagen_b64 = datos_post.get("imagen")
         
         project_data = json.loads(project.data)
+        print(f"DEBUG PDF: project_data keys: {list(project_data.keys())}")
+        
         from rectificador import procesar_plano
         plano_procesado = procesar_plano(project_data)
         
-        from detector_piezas import detectar_piezas
-        from detector_valvulas import detectar_valvulas
-        from generador_bom import generar_bom
+        print(f"DEBUG PDF: plano_procesado lineas count: {len(plano_procesado.get('lineas', []))}")
+        print(f"DEBUG PDF: plano_procesado piezas count: {len(plano_procesado.get('piezas', []))}")
         
-        piezas = detectar_piezas(plano_procesado["lineas"])
-        valvulas = detectar_valvulas(plano_procesado["lineas"], plano_procesado["nodos"], piezas)
-        bom = generar_bom(plano_procesado["lineas"], piezas, valvulas)
+        # Usar el BOM que ya calculó procesar_plano internamente
+        bom = plano_procesado.get("bom", {})
         
         from generador_pdf import generar_reporte_pdf
         pdf_content = generar_reporte_pdf(

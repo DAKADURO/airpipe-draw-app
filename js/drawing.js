@@ -220,6 +220,20 @@ export function redraw() {
             ctx.restore();
         }
 
+        if (state.bgLines && state.bgLines.length > 0) {
+            ctx.save();
+            ctx.strokeStyle = '#607D8B'; // Gris azulado discreto
+            ctx.globalAlpha = state.bgOpacity;
+            ctx.lineWidth = 1 / state.viewState.scale;
+            ctx.beginPath();
+            for (const l of state.bgLines) {
+                ctx.moveTo(l.x1 * state.bgScale, l.y1 * state.bgScale);
+                ctx.lineTo(l.x2 * state.bgScale, l.y2 * state.bgScale);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
         drawGrid();
 
         const lineasHistorial = state.historial.filter(a => a.tipo === 'linea');

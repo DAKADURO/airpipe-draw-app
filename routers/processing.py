@@ -50,3 +50,28 @@ def procesar():
         return jsonify({"error": f"Error interno al procesar el plano: {exc}"}), 500
 
     return jsonify(plano_procesado), 200
+
+@processing_bp.route("/dxf-to-json", methods=["POST"])
+def dxf_to_json():
+    """
+    Recibe un archivo DXF y retorna una lista de líneas para el fondo.
+    """
+    if 'file' not in request.files:
+        return jsonify({"error": "No se proporcionó ningún archivo"}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "Nombre de archivo vacío"}), 400
+        
+    try:
+        content = file.read()
+        from parser_dxf import dxf_a_lineas_json
+        lineas = dxf_a_lineas_json(content)
+        
+        return jsonify({
+            "status": "success",
+            "count": len(lineas),
+            "lines": lineas
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Error procesando DXF: {str(e)}"}), 500
