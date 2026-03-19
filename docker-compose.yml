@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  draw_app:
+    build: .
+    container_name: draw_production_api
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - draw_uploads:/app/server_uploads
+      - draw_db:/app/instance
+    environment:
+      # Lista de IPs autorizadas separadas por coma en tu servidor real
+      - ALLOWED_ORIGINS=http://localhost,http://127.0.0.1
+      - JWT_SECRET_KEY=cambia-esta-clave-secreta-pronto
+
+volumes:
+  draw_uploads:
+  draw_db:
