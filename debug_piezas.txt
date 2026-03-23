@@ -1,0 +1,8 @@
+DEBUG LONG LINE: From (148.0,101.0,0) to (2148.0,101.0,0), Len: 2000.00px (40.00m)
+DEBUG UNIONES: Placing 6 unions on line of 2000.00px
+DEBUG UNION POS: Union 1 at dist 289.56px -> (437.56, 101.00, 0.00)
+DEBUG UNION POS: Union 2 at dist 579.12px -> (727.12, 101.00, 0.00)
+DEBUG UNION POS: Union 3 at dist 868.68px -> (1016.68, 101.00, 0.00)
+DEBUG UNION POS: Union 4 at dist 1158.24px -> (1306.24, 101.00, 0.00)
+DEBUG UNION POS: Union 5 at dist 1447.80px -> (1595.80, 101.00, 0.00)
+DEBUG UNION POS: Union 6 at dist 1737.36px -> (1885.36, 101.00, 0.00)

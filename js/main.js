@@ -4,7 +4,7 @@ import { setupUI } from './ui.js';
 import { updateAuthUI } from './api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Airpipe DRAW 1.0 - ES Module Environment Loaded");
+    console.log("Airpipe DRAW 2.0.1 - ES Module Environment Loaded");
 
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');

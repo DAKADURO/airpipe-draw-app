@@ -16,7 +16,7 @@ import math
 #  Constantes
 # ─────────────────────────────────────────────
 
-PIXELS_POR_METRO = 50      # Coincide con canvas.js
+PIXELS_POR_METRO = 100      # Coincide con config.js
 METROS_A_PIES = 3.28084    # 1 metro = 3.28084 pies
 
 # Longitudes de referencia (en pies) — columnas de las tablas
@@ -227,7 +227,8 @@ def dimensionar_lineas(lineas: list[dict], caudal_scfm: float, tipo_red: str = "
     for linea in lineas:
         dx = linea["x2"] - linea["x1"]
         dy = linea["y2"] - linea["y1"]
-        longitud_total_px += math.hypot(dx, dy)
+        dz = linea.get("z2", 0) - linea.get("z1", 0)
+        longitud_total_px += math.sqrt(dx*dx + dy*dy + dz*dz)
 
     longitud_total_pies = px_a_pies(longitud_total_px)
 
@@ -238,7 +239,8 @@ def dimensionar_lineas(lineas: list[dict], caudal_scfm: float, tipo_red: str = "
     for linea in lineas:
         dx = linea["x2"] - linea["x1"]
         dy = linea["y2"] - linea["y1"]
-        l_px = math.hypot(dx, dy)
+        dz = linea.get("z2", 0) - linea.get("z1", 0)
+        l_px = math.sqrt(dx*dx + dy*dy + dz*dz)
         l_pies = px_a_pies(l_px)
         l_metros = px_a_metros(l_px)
 

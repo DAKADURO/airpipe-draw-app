@@ -110,3 +110,17 @@ export async function downloadPDF(projectId, bgBase64 = null) {
     });
     return resp;
 }
+
+export async function downloadPDFDirect(plano, bgBase64 = null, nombre = "Plano Temporal", cliente = "S/C") {
+    const resp = await fetch(`${API_BASE}/procesar-pdf`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ 
+            plano, 
+            imagen: bgBase64,
+            nombre,
+            cliente
+        })
+    });
+    return resp;
+}

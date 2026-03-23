@@ -16,18 +16,21 @@ def procesar_imagenes_base64(data_dict: dict) -> dict:
     if "bgBase64" in data_dict and data_dict["bgBase64"]:
         b64_str = data_dict["bgBase64"]
         if b64_str.startswith("data:image/"):
-            header, encoded = b64_str.split(",", 1)
-            ext = "png"
-            if "jpeg" in header or "jpg" in header: ext = "jpg"
-            elif "webp" in header: ext = "webp"
-            
-            filename = f"bg_{uuid.uuid4().hex[:8]}.{ext}"
-            filepath = os.path.join(UPLOADS_DIR, filename)
-            
-            with open(filepath, "wb") as f:
-                f.write(base64.b64decode(encoded))
-            
-            data_dict["bgUrl"] = f"/server_uploads/backgrounds/{filename}"
+            if "," in b64_str:
+                header, encoded = b64_str.split(",", 1)
+                ext = "png"
+                if "jpeg" in header or "jpg" in header: ext = "jpg"
+                elif "webp" in header: ext = "webp"
+                
+                filename = f"bg_{uuid.uuid4().hex[:8]}.{ext}"
+                filepath = os.path.join(UPLOADS_DIR, filename)
+                
+                try:
+                    with open(filepath, "wb") as f:
+                        f.write(base64.b64decode(encoded))
+                    data_dict["bgUrl"] = f"/server_uploads/backgrounds/{filename}"
+                except Exception as e:
+                    print(f"Error saving background image: {e}")
         del data_dict["bgBase64"]
     return data_dict
 

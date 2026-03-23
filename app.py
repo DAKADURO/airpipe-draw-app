@@ -1,3 +1,4 @@
+from datetime import timedelta
 import os
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
@@ -20,9 +21,9 @@ else:
     CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}})
 
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "airpipe-secret-key-change-me")
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 jwt = JWTManager(app)
 
-import os
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'app.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -53,4 +54,4 @@ def health():
     return jsonify({"status": "ok", "servicio": "AIRpipe API"}), 200
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

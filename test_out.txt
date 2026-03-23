@@ -1,0 +1,14 @@
+=======================================================
+  TEST: rectificar_ejes — snap a 45°
+=======================================================
+  Input:            x1=0, y1=0, x2=100, y2=107.24
+  Ángulo real:      47.0008°
+  Longitud:         146.6302 px
+  Eje más cercano:  45°
+  Desviación:       2.0008°  (tolerancia=15°)
+
+  Output:           x1=0, y1=0, x2=103.6832, y2=103.6832
+  Snap aplicado:    45°
+  Ángulo original:  None°
+  Ángulo final:     45.000000°
+

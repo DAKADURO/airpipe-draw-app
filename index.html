@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>AIRpipe — Generador de Planos SVG</title>
     <style>
         *,
@@ -19,14 +19,79 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: #1A1A2E;
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         #app {
             display: flex;
+            flex-direction: column;
             width: 100%;
             height: 100%;
+        }
+
+        /* ── Ribbon (Top Bar) ── */
+        #ribbon {
+            height: 90px;
+            background: linear-gradient(180deg, #333333 0%, #2d2d2d 100%);
+            border-bottom: 2px solid #007acc;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 16px;
+            flex-shrink: 0;
+            z-index: 1000;
+        }
+
+        .ribbon-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0 12px;
+            border-right: 1px solid #3c3c3c;
+            height: 80%;
+        }
+        .ribbon-brand h1 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #007acc;
+            letter-spacing: 1px;
+            line-height: 1;
+        }
+        .ribbon-brand p {
+            font-size: 8px;
+            text-transform: uppercase;
+            color: #666;
+            letter-spacing: 1.5px;
+        }
+
+        .ribbon-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 80%;
+            border-right: 1px solid #3c3c3c;
+            padding-right: 15px;
+            justify-content: space-between;
+        }
+
+        .ribbon-group:last-child {
+            border-right: none;
+        }
+
+        .ribbon-group-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #888;
+            letter-spacing: 0.5px;
+        }
+
+        .ribbon-tools {
+            display: flex;
+            gap: 8px;
+            align-items: center;
         }
 
         /* ── Canvas area ── */
@@ -34,6 +99,7 @@
             flex: 1;
             position: relative;
             overflow: hidden;
+            background: #1e1e1e;
         }
 
         #mainCanvas {
@@ -41,129 +107,112 @@
             cursor: crosshair;
         }
 
-        /* ── Side panel ── */
-        #panel {
-            width: 200px;
-            flex-shrink: 0;
-            background: #16213E;
-            border-left: 1px solid #0F3460;
+        /* ── Command Bar (Bottom) ── */
+        #command-bar {
+            height: 32px;
+            background: #252526;
+            border-top: 1px solid #3c3c3c;
             display: flex;
-            flex-direction: column;
-            gap: 0;
-            padding: 0;
-            overflow-y: auto;
+            align-items: center;
+            padding: 0 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            color: #bcbcbc;
+            flex-shrink: 0;
+            justify-content: space-between;
         }
 
-        #panel-header {
-            padding: 18px 16px 14px;
-            border-bottom: 1px solid #0F3460;
-        }
-
-        #panel-header h1 {
-            font-size: 18px;
-            font-weight: 700;
-            color: #E0E0FF;
-            letter-spacing: 1px;
-        }
-
-        #panel-header p {
-            font-size: 10px;
-            color: #6B7DB3;
-            margin-top: 2px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-
-        .panel-section {
-            padding: 14px 12px;
-            border-bottom: 1px solid #0F3460;
-        }
-
-        .panel-section label {
-            display: block;
-            font-size: 10px;
-            color: #6B7DB3;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            margin-bottom: 8px;
-        }
-
-        .tool-btn {
+        #command-text {
             display: flex;
             align-items: center;
             gap: 10px;
-            width: 100%;
-            padding: 10px 12px;
-            margin-bottom: 6px;
-            border: 1px solid #0F3460;
-            border-radius: 8px;
-            background: #0F3460;
-            color: #C0CFFF;
-            font-size: 13px;
-            font-weight: 500;
+        }
+
+        .command-prompt {
+            color: #569cd6;
+            font-weight: bold;
+        }
+
+        #coords-display {
+            font-size: 11px;
+            color: #888;
+        }
+
+        /* ── Tool buttons ── */
+        .tool-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-width: 54px;
+            height: 60px;
+            padding: 6px 8px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            background: transparent;
+            color: #bcbcbc;
+            font-size: 10px;
             cursor: pointer;
-            transition: background 0.15s, border-color 0.15s, color 0.15s;
-            text-align: left;
-        }
-
-        .tool-btn:last-child {
-            margin-bottom: 0;
-        }
-
-        .tool-btn:hover {
-            background: #1A4A8A;
-            border-color: #2A6ACA;
-            color: #E8F0FF;
-        }
-
-        .tool-btn.active {
-            background: #005EAA;
-            border-color: #0080EE;
-            color: #FFFFFF;
-            box-shadow: 0 0 0 2px rgba(0, 94, 170, 0.4);
+            transition: background 0.12s, border-color 0.12s, color 0.12s;
+            user-select: none;
         }
 
         .tool-btn .icon {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
             flex-shrink: 0;
-        }
-
-        .icon-compresor {
-            background: #424242;
-            border: 2px solid #757575;
-        }
-
-        .icon-consumo {
-            background: #D32F2F;
-            border: 2px solid #EF5350;
-        }
-
-        .icon-valvula {
-            background: #00BCD4;
-            border: 2px solid #FFFFFF;
-            mask: radial-gradient(circle at center, transparent 30%, black 31%);
-            /* Optional: bowtie style simulation */
-        }
-
-        .icon-line {
-            width: 18px;
-            height: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0;
         }
 
-        .icon-line::after {
-            content: '';
-            display: block;
-            width: 14px;
-            height: 2px;
-            background: #005EAA;
-            border-radius: 1px;
-            transform: rotate(-35deg);
+        .tool-btn:hover {
+            background: #3e3e42;
+            border-color: #505054;
+            color: #e0e0e0;
+        }
+
+        .tool-btn.active {
+            background: #264f78;
+            color: #ffffff;
+            border-color: #007acc;
+        }
+
+        .icon-compresor {
+            background: #555;
+            border: 2px solid #999;
+            border-radius: 4px;
+        }
+
+        .icon-consumo {
+            background: #c62828;
+            border: 2px solid #ef5350;
+            border-radius: 50%;
+        }
+
+        .icon-valvula {
+            background: #00838f;
+            border: 2px solid #4dd0e1;
+            border-radius: 2px;
+            clip-path: polygon(0% 0%, 100% 100%, 100% 0%, 0% 100%);
+        }
+
+        .icon-line {
+            width: 22px;
+            height: 3px;
+            background: linear-gradient(90deg, #007acc, #00bcd4);
+            border-radius: 2px;
+            transform: rotate(-30deg);
+        }
+
+        .icon-pan {
+            font-size: 20px;
+            line-height: 1;
+        }
+        .icon-pan::after {
+            content: '✋';
         }
 
         /* ── Legend helper classes ── */
@@ -228,73 +277,45 @@
         }
 
         .action-btn {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-            width: 100%;
-            padding: 10px 12px;
-            margin-bottom: 6px;
-            border: 1px solid #0F3460;
-            border-radius: 8px;
-            background: transparent;
-            color: #C0CFFF;
-            font-size: 13px;
+            gap: 6px;
+            padding: 6px 12px;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            background: #2d2d2d;
+            color: #bcbcbc;
+            font-size: 11px;
             font-weight: 500;
             cursor: pointer;
-            transition: background 0.15s, border-color 0.15s, color 0.15s;
-            text-align: left;
-        }
-
-        .action-btn:last-child {
-            margin-bottom: 0;
+            transition: background 0.12s, border-color 0.12s, color 0.12s;
+            white-space: nowrap;
         }
 
         .action-btn:hover {
-            background: #1A2A4A;
-            border-color: #2A4A8A;
-            color: #E8F0FF;
-        }
-
-        .action-btn.danger:hover {
-            background: #3A1A1A;
-            border-color: #8A2A2A;
-            color: #FFB0B0;
+            background: #3e3e42;
+            border-color: #007acc;
+            color: #e0e0e0;
         }
 
         .action-btn.primary {
-            background: #005EAA;
-            border-color: #0080EE;
+            background: #264f78;
+            border-color: #007acc;
             color: #FFFFFF;
             font-weight: 600;
         }
 
         .action-btn.primary:hover {
-            background: #0070CC;
-            border-color: #0090FF;
+            background: #007acc;
         }
 
         .kbd {
-            margin-left: auto;
-            font-size: 10px;
-            background: #0F3460;
-            color: #6B7DB3;
-            padding: 2px 5px;
-            border-radius: 4px;
-            border: 1px solid #1A4A8A;
-        }
-
-        /* ── Status bar ── */
-        #status-bar {
-            margin-top: auto;
-            padding: 10px 12px;
-            border-top: 1px solid #0F3460;
-            font-size: 11px;
-            color: #6B7DB3;
-            min-height: 36px;
-        }
-
-        #status-text {
-            line-height: 1.4;
+            margin-left: 4px;
+            font-size: 9px;
+            background: #3c3c3c;
+            color: #aaa;
+            padding: 1px 4px;
+            border-radius: 3px;
         }
 
         /* ── Mode indicator on canvas ── */
@@ -302,13 +323,13 @@
             position: absolute;
             top: 12px;
             left: 12px;
-            background: rgba(22, 33, 62, 0.85);
+            background: rgba(38, 38, 38, 0.9);
             backdrop-filter: blur(6px);
-            border: 1px solid #0F3460;
-            border-radius: 8px;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
             padding: 6px 12px;
             font-size: 12px;
-            color: #C0CFFF;
+            color: #e0e0e0;
             pointer-events: none;
             transition: opacity 0.2s;
         }
@@ -339,20 +360,20 @@
         }
 
         .modal-content {
-            background: #16213E;
-            border: 1px solid #0F3460;
-            border-radius: 12px;
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            border-radius: 8px;
             padding: 20px;
             display: flex;
             flex-direction: column;
             gap: 16px;
             max-width: 90%;
             max-height: 90%;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
         }
 
         .modal-content h2 {
-            color: #E0E0FF;
+            color: #e0e0e0;
             font-size: 18px;
             margin: 0;
         }
@@ -774,17 +795,186 @@
         .auth-switch span:hover {
             text-decoration: underline;
         }
+
+        /* ── Mobile Responsive ── */
+        @media (max-width: 768px) {
+            #ribbon {
+                overflow-x: auto;
+                padding-bottom: 5px;
+                -webkit-overflow-scrolling: touch;
+            }
+            .ribbon-brand {
+                min-width: 80px;
+            }
+            .ribbon-group {
+                min-width: max-content;
+            }
+            .tool-btn {
+                padding: 6px;
+                min-width: 45px;
+            }
+            .tool-btn span.icon {
+                font-size: 16px;
+                margin-bottom: 3px;
+            }
+            
+            .modal-content, .svg-modal-content, .bom-modal-content {
+                width: 95%;
+                margin: 20px auto;
+            }
+            
+            .auth-container {
+                width: 90%;
+            }
+            
+            .bg-controls-panel {
+                top: auto;
+                bottom: 50px;
+                right: 10px;
+                left: 10px;
+                width: auto;
+                display: flex;
+                flex-wrap: wrap;
+                flex-direction: row;
+                justify-content: space-between;
+            }
+            .bg-controls-panel > * {
+                flex: 1 1 45%;
+            }
+            .bg-controls-panel button {
+                flex: 1 1 100%;
+                margin-top: 5px;
+            }
+
+            #command-bar {
+                font-size: 8px;
+                flex-wrap: wrap;
+            }
+        }
     </style>
 </head>
 
 <body>
     <div id="app">
+        <!-- Top Ribbon -->
+        <header id="ribbon">
+            <div class="ribbon-brand">
+                <h1>AIRpipe</h1>
+                <p>DRAW 2.0.2</p>
+            </div>
+
+            <div class="ribbon-group">
+                <div class="ribbon-tools">
+                    <button class="tool-btn" id="btn-line" title="Tubería (L)">
+                        <span class="icon-line"></span>
+                        Tubería
+                    </button>
+                    <button class="tool-btn" id="btn-compresor" title="Compresor">
+                        <span class="icon icon-compresor"></span>
+                        Compresor
+                    </button>
+                    <button class="tool-btn" id="btn-consumo" title="Punto de Consumo">
+                        <span class="icon icon-consumo"></span>
+                        Consumo
+                    </button>
+                    <button class="tool-btn" id="btn-valvula" title="Válvula">
+                        <span class="icon icon-valvula"></span>
+                        Válvula
+                    </button>
+                </div>
+                <div class="ribbon-group-label">Dibujo</div>
+            </div>
+
+            <div class="ribbon-group">
+                <div class="ribbon-tools">
+                    <button class="tool-btn" id="btn-acotar" title="Acotar (D)">
+                        📏
+                        Acotar
+                    </button>
+                    <button class="tool-btn" id="btn-borrar" title="Borrar (Del)">
+                        🗑
+                        Borrar
+                    </button>
+                    <button class="tool-btn" id="btn-undo" title="Deshacer (Ctrl+Z)">
+                        ↩
+                        Deshacer
+                    </button>
+                </div>
+                <div class="ribbon-group-label">Modificar</div>
+            </div>
+
+            <div class="ribbon-group">
+                <div class="ribbon-tools">
+                    <button class="tool-btn" id="btn-pan" title="Encuadre (Espacio)">
+                        <span class="icon icon-pan"></span>
+                        Encuadre
+                    </button>
+                    <button class="tool-btn" id="btn-center" title="Centrar (C)">
+                        🎯
+                        Centrar
+                    </button>
+                    <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #bcbcbc;">
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="check-isometric"> 📐 3D
+                        </label>
+                        <input type="number" id="input-z" step="0.5" value="0" style="width: 45px; background: #3c3c3c; border: 1px solid #555; color: white; font-size: 10px; border-radius: 3px; padding: 2px;">
+                    </div>
+                </div>
+                <div class="ribbon-group-label">Vista</div>
+            </div>
+
+            <div class="ribbon-group">
+                <div class="ribbon-tools">
+                    <button class="tool-btn" id="btn-new-project" title="Nuevo Proyecto">
+                        📄
+                        Nuevo
+                    </button>
+                    <button class="tool-btn" id="btn-save-project" title="Guardar">
+                        💾
+                        Guardar
+                    </button>
+                    <button class="tool-btn" id="btn-open-project" title="Abrir">
+                        📂
+                        Abrir
+                    </button>
+                    <button class="tool-btn" id="btn-generar" title="Generar Plano" style="color: #4fc3f7;">
+                        ⚡
+                        Generar
+                    </button>
+                    <div style="display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: #bcbcbc;">
+                        <select id="select-tipo-red" style="background: #3c3c3c; color: #ddd; border: 1px solid #555; border-radius: 3px; font-size: 9px; padding: 2px;">
+                            <option value="lineal">Lineal</option>
+                            <option value="anillo">Anillo</option>
+                        </select>
+                        <input type="number" id="input-caudal" step="10" value="0" placeholder="CFM" style="width: 55px; background: #3c3c3c; border: 1px solid #555; color: white; font-size: 9px; border-radius: 3px; padding: 2px;">
+                    </div>
+                </div>
+                <div class="ribbon-group-label">Proyecto</div>
+            </div>
+
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px; padding-right: 10px;">
+                <button class="action-btn" id="btn-load-bg" style="font-size: 10px; padding: 5px 10px;">🖼️ Fondo</button>
+                <button class="action-btn" id="btn-show-bom" style="font-size: 10px; padding: 5px 10px;">📦 BOM</button>
+                <button class="action-btn" id="btn-logout" style="font-size: 10px; padding: 5px 10px; color: #f48771;" title="Cerrar sesión">🔓 Sesión</button>
+            </div>
+        </header>
+
         <!-- Canvas area -->
         <div id="canvas-wrapper">
             <canvas id="mainCanvas"></canvas>
             <input type="text" id="lengthInput" style="position: absolute; display: none; z-index: 100; font-size: 14px; width: 60px; text-align: center; border: 1px solid #1A4A8A; background: #0F3460; color: white; border-radius: 4px; padding: 4px;" />
             <input type="text" id="floating-dim-input" style="position: absolute; display: none; z-index: 100; font-size: 14px; width: 60px; text-align: center; border: 1px dashed #FF9800; background: #0F3460; color: #FF9800; border-radius: 4px; padding: 4px;" />
             <div id="mode-indicator" class="hidden">Modo: —</div>
+
+            <!-- Floating Background Controls -->
+            <div id="bg-controls" style="display: none; position: absolute; top: 10px; right: 10px; background: rgba(38,38,38,0.95); border: 1px solid #3c3c3c; border-radius: 6px; padding: 10px; z-index: 50; font-size: 11px; color: #bcbcbc; min-width: 180px;">
+                <div style="margin-bottom: 6px; font-weight: 600; color: #e0e0e0;">🖼️ Plano de Fondo</div>
+                <label style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">Opacidad <span id="bg-opacity-val">50%</span></label>
+                <input type="range" id="bg-opacity" min="10" max="100" value="50" style="width: 100%; accent-color: #007acc;">
+                <label style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; margin-top: 6px;">Escala <span id="bg-scale-val">1.0x</span></label>
+                <input type="range" id="bg-scale" min="0.1" max="5" step="0.1" value="1" style="width: 100%; accent-color: #007acc;">
+                <button id="btn-remove-bg" class="action-btn" style="width: 100%; margin-top: 8px; font-size: 10px; padding: 4px 8px; justify-content: center;">❌ Quitar Fondo</button>
+            </div>
 
             <!-- SVG Modal Overlay -->
             <div id="svg-modal" class="hidden">
@@ -872,7 +1062,7 @@
         <div id="auth-modal">
             <div class="auth-container">
                 <div id="login-view">
-                    <h2>Bienvenido a DRAW 1.0</h2>
+                    <h2>Bienvenido a DRAW 2.0.1</h2>
                     <p>Inicia sesión para gestionar tus proyectos en la nube.</p>
                     <form class="auth-form" id="login-form">
                         <input type="email" class="auth-input" id="login-email" placeholder="Email" required />
@@ -901,209 +1091,17 @@
             </div>
         </div>
 
-        <!-- Side panel -->
-        <aside id="panel">
-
-            <div id="panel-header">
-                <h1>AIRpipe</h1>
-                <p>Generador de Planos</p>
+        <!-- Command Bar -->
+        <footer id="command-bar">
+            <div id="command-text">
+                <span class="command-prompt">COMANDO:</span>
+                <span id="status-text">Iniciado. Seleccione una herramienta.</span>
             </div>
-
-            <!-- Network Parameters -->
-            <div class="panel-section">
-                <label>Parámetros de Red</label>
-                <div style="margin-bottom: 8px;">
-                    <span style="font-size: 11px; color: #8B9FD3; display: block; margin-bottom: 4px;">Tipo de
-                        Red</span>
-                    <select id="select-tipo-red" style="
-                        width: 100%;
-                        padding: 8px 10px;
-                        background: #0F3460;
-                        border: 1px solid #1A4A8A;
-                        border-radius: 6px;
-                        color: #C0CFFF;
-                        font-size: 12px;
-                        font-family: inherit;
-                        cursor: pointer;
-                        outline: none;
-                    ">
-                        <option value="lineal">📏 Lineal (Open Loop)</option>
-                        <option value="bucle">🔄 Bucle (Closed Loop)</option>
-                    </select>
-                </div>
-                <div>
-                    <span style="font-size: 11px; color: #8B9FD3; display: block; margin-bottom: 4px;">Caudal Total
-                        (SCFM)</span>
-                    <input type="number" id="input-caudal" min="10" max="9500" value="500" placeholder="500" style="
-                            width: 100%;
-                            padding: 8px 10px;
-                            background: #0F3460;
-                            border: 1px solid #1A4A8A;
-                            border-radius: 6px;
-                            color: #C0CFFF;
-                            font-size: 12px;
-                            font-family: inherit;
-                            outline: none;
-                        " />
-                </div>
-            </div>
-
-            <!-- Tools -->
-            <div class="panel-section">
-                <label>Herramientas</label>
-                <button class="tool-btn" id="btn-line" title="Clic para iniciar línea, segundo clic para terminarla">
-                    <span class="icon icon-line"></span>
-                    Tubería
-                </button>
-                <button class="tool-btn" id="btn-compresor" title="Coloca un nodo Compresor">
-                    <span class="icon icon-compresor"></span>
-                    Compresor
-                </button>
-                <button class="tool-btn" id="btn-consumo" title="Coloca un nodo Punto de Consumo">
-                    <span class="icon icon-consumo"></span>
-                    Punto de Consumo
-                </button>
-                <button class="tool-btn" id="btn-valvula" title="Coloca una válvula manual sobre una tubería">
-                    <span class="icon icon-valvula"></span>
-                    Válvula
-                </button>
-                <button class="tool-btn" id="btn-acotar" title="Acotar: mide la distancia entre dos puntos">
-                    📏 Acotar
-                </button>
-                <button class="tool-btn" id="btn-borrar" title="Eliminar elementos del plano" style="margin-top: 5px; border-color: #D32F2F;">
-                    🗑 Borrar
-                </button>
-            </div>
-
-            <!-- Fondo / Blueprint -->
-            <div class="panel-section">
-                <label>Plano de Fondo</label>
-                <div style="margin-bottom: 8px;">
-                    <button class="action-btn" id="btn-load-bg" title="Cargar imagen (PNG, JPG) o dibujo vectorial (DXF)"
-                        style="margin-bottom: 4px; border-style: dashed;">
-                        🖼️ Cargar Plano Fondo (Imagen / DXF)
-                    </button>
-                    <input type="file" id="bg-input" accept="image/png, image/jpeg, image/webp, .dxf"
-                        style="display: none;" />
-                </div>
-                <!-- Controles de fondo (Ocultos por defecto) -->
-                <div id="bg-controls"
-                    style="display: none; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px;">
-                    <div style="margin-bottom: 8px;">
-                        <span style="font-size: 10px; color: #8B9FD3; display: flex; justify-content: space-between;">
-                            <span>Opacidad</span>
-                            <span id="bg-opacity-val">50%</span>
-                        </span>
-                        <input type="range" id="bg-opacity" min="0" max="100" value="50"
-                            style="width: 100%; margin-top: 4px;">
-                    </div>
-                    <div style="margin-bottom: 4px;">
-                        <span style="font-size: 10px; color: #8B9FD3; display: flex; justify-content: space-between;">
-                            <span>Escala</span>
-                            <span id="bg-scale-val">1.0x</span>
-                        </span>
-                        <input type="range" id="bg-scale" min="0.1" max="5" step="0.1" value="1"
-                            style="width: 100%; margin-top: 4px;">
-                    </div>
-                    <button class="action-btn danger" id="btn-remove-bg"
-                        style="padding: 4px 8px; margin-top: 8px; font-size: 11px;">
-                        🗑 Quitar Fondo
-                    </button>
-                </div>
-            </div>
-
-            <!-- Proyecto -->
-            <div class="panel-section">
-                <label>Proyecto</label>
-                <button class="action-btn" id="btn-save-project" title="Guardar proyecto actual"
-                    style="background: #1A4A8A; border-color: #2A6ACA; color: white;">
-                    💾 Guardar
-                </button>
-                <button class="action-btn" id="btn-open-project" title="Abrir proyecto guardado">
-                    📂 Abrir Proyecto
-                </button>
-                <div id="project-name-display"></div>
-            </div>
-
-            <!-- Actions -->
-            <div class="panel-section">
-                <label>Acciones</label>
-                <button class="action-btn danger" id="btn-undo" title="Deshacer última acción (Ctrl+Z)">
-                    ↩ Deshacer
-                    <span class="kbd">Ctrl+Z</span>
-                </button>
-                <button class="action-btn" id="btn-clear" title="Limpiar todo el canvas">
-                    🗑 Limpiar todo
-                </button>
-            </div>
-
-            <!-- Export -->
-            <div class="panel-section">
-                <label>Exportar</label>
-                <button class="action-btn primary" id="btn-generar" title="Genera el plano y detecta materiales"
-                    style="margin-bottom: 10px;">
-                    ⚡ Generar Plano
-                </button>
-                <button class="action-btn" id="btn-show-bom" title="Ver resumen de materiales"
-                    style="border-style: dashed; border-color: #1A4A8A;">
-                    📦 Resumen de Materiales
-                </button>
-            </div>
-
-            <!-- Simbología -->
-            <div class="panel-section" id="legend-section">
-                <label>Simbología</label>
-                <ul class="legend-list">
-                    <li class="legend-item">
-                        <div class="legend-symbol sym-circle" style="background: #424242;">C</div> Compresor
-                    </li>
-                    <li class="legend-item">
-                        <div class="legend-symbol sym-circle" style="background: #D32F2F;">P</div> Consumo
-                    </li>
-                    <hr style="border: none; border-top: 1px solid #0F3460; margin: 4px 0 8px;">
-                    <li class="legend-item">
-                        <div class="legend-symbol sym-circle sym-codo">C</div> Codo 90°
-                    </li>
-                    <li class="legend-item">
-                        <div class="legend-symbol"
-                            style="background: #FF9800; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); width: 14px; height: 14px;">
-                        </div> Codo 45°
-                    </li>
-                    <li class="legend-item">
-                        <div class="legend-symbol" style="background: #FF9800;">T</div> Te Igual (90°)
-                    </li>
-                    <li class="legend-item">
-                        <div class="legend-symbol"
-                            style="background: #FF9800; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); width: 14px; height: 14px; font-size: 8px;">
-                            L
-                        </div> Te Lateral 45°
-                    </li>
-                    <li class="legend-item">
-                        <div class="legend-symbol sym-circle sym-te">T</div> Te (Otro)
-                    </li>
-                    <li class="legend-item">
-                        <div class="legend-symbol sym-circle sym-cruz">+</div> Cruz
-                    </li>
-                    <li class="legend-item">
-                        <div class="legend-symbol sym-square sym-union">U</div> Union
-                    </li>
-                    <li class="legend-item">
-                        <div class="legend-symbol sym-circle sym-tapon">X</div> Tapón
-                    </li>
-                    <li class="legend-item">
-                        <div class="legend-symbol sym-valvula"></div> Válvula
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Status bar -->
-            <div id="status-bar">
-                <div id="status-text">Selecciona una herramienta para comenzar.</div>
-            </div>
-        </aside>
+            <div id="coords-display">X: 0.00, Y: 0.00, Z: 0.00</div>
+        </footer>
     </div>
 
-    <input type="text" id="floating-dim-input" placeholder="0.00" />
+    <input type="file" id="bg-input" accept="image/png, image/jpeg, image/webp, .dxf" style="display: none;" />
     <script type="module" src="js/main.js"></script>
 </body>
 

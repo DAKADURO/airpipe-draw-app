@@ -47,6 +47,17 @@ def generar_bom(lineas: list[dict], piezas: list[dict], valvulas: list[dict]) ->
     for P in piezas:
         t = P.get("tipo", "Desconocido")
         d = P.get("diametro", "N/A")
+        
+        # Caso especial para ensambles (Te + Codo)
+        if t == "Te + Codo":
+            # Añadir una Te
+            k_te = ("Te Igual (90°)", d)
+            acc_map[k_te] = acc_map.get(k_te, 0) + 1
+            # Añadir un Codo
+            k_codo = ("Codo 90°", d)
+            acc_map[k_codo] = acc_map.get(k_codo, 0) + 1
+            continue
+
         # Formatear tipo para que sea más legible
         tipo_es = {
             "Codo": "Codo 90°",

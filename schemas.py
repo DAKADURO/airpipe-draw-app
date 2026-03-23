@@ -28,4 +28,5 @@ class ProcesarRequest(BaseModel):
     valvulas_manuales: Optional[List[ValvulaManual]] = Field(default_factory=list)
     tipo_red: Optional[str] = "lineal"
     caudal_scfm: Optional[float] = 0.0
+    is_isometric: Optional[bool] = False
     model_config = ConfigDict(extra='allow')

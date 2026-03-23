@@ -11,12 +11,16 @@ export const state = {
     viewState: {
         scale: 1.0,
         offsetX: 0,
-        offsetY: 0
+        offsetY: 0,
+        isIsometric: false, // Modo isométrico activo
+        currentZ: 0         // Nivel de altura actual para dibujos nuevos
     },
 
     isPanning: false,
     lastPanX: 0,
     lastPanY: 0,
+    lastMouseX: 0,
+    lastMouseY: 0,
 
     historial: [],
 

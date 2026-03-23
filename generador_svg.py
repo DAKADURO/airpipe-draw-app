@@ -7,6 +7,8 @@ OPT-6: El grid se genera con un <pattern> SVG en lugar de N líneas individuales
        Ahora: 1 <pattern> + 1 <rect> → SVG mínimo, mismo resultado visual.
 """
 
+import math
+
 # Colores (coinciden con frontend)
 COLOR_GRID        = "#E0E0E0"
 COLOR_LINEA       = "#005EAA"
@@ -65,7 +67,6 @@ def generar_svg(plano: dict, ancho: int = 1920, alto: int = 1080) -> str:
             # Calcular punto medio y ángulo de rotación
             mx = (x1 + x2) / 2
             my = (y1 + y2) / 2
-            import math
             angulo = math.degrees(math.atan2(y2 - y1, x2 - x1))
             # Mantener el texto legible (no boca abajo)
             if angulo > 90 or angulo < -90:

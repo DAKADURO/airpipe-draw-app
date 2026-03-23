@@ -1,6 +1,8 @@
 
 import ezdxf
 import math
+import os
+import tempfile
 from ezdxf.enums import TextEntityAlignment
 
 def generar_dxf(plano: dict) -> str:
@@ -51,7 +53,6 @@ def generar_dxf(plano: dict) -> str:
         # Etiqueta de diámetro (si existe)
         diametro = linea.get('diametro')
         if diametro:
-            import math
             mx = (start[0] + end[0]) / 2
             my = (start[1] + end[1]) / 2
             dx = end[0] - start[0]
@@ -136,7 +137,7 @@ def generar_dxf(plano: dict) -> str:
     valvulas = plano.get("valvulas", [])
     if valvulas:
         if 'VALVULAS' not in doc.layers:
-            doc.layers.add(name='VALVULAS', color=4) # Cyan
+            doc.layers.new(name='VALVULAS', dxfattribs={'color': 4})
 
         for v in valvulas:
             # Coordenadas DXF (Y invertido y escala de metros)
@@ -167,7 +168,6 @@ def generar_dxf(plano: dict) -> str:
             msp.add_lwpolyline(transform(t2), dxfattribs={'layer': 'VALVULAS', 'closed': True})
 
     # Retornar el contenido del archivo como string
-    import tempfile, os
     with tempfile.NamedTemporaryFile(suffix='.dxf', delete=False, mode='w', encoding='utf-8') as tmp:
         tmp_path = tmp.name
     

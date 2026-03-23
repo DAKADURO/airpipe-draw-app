@@ -1,7 +1,8 @@
 import { state, invalidateSnapCache } from './state.js';
 import { MODO, PIXELS_POR_METRO, API_BASE } from './config.js';
 import { redraw, scheduleRedraw } from './drawing.js';
-import { procesarPlano, saveProject, getProjects, getProject, deleteProject, login, register, downloadPDF } from './api.js';
+import { toScreen } from './math.js';
+import { procesarPlano, saveProject, getProjects, getProject, deleteProject, login, register, downloadPDF, downloadPDFDirect } from './api.js';
 
 export function setupUI(canvas) {
     const statusText = document.getElementById('status-text');
@@ -20,6 +21,7 @@ export function setupUI(canvas) {
             [MODO.COMPRESOR]: '⚙️  Modo: Compresor',
             [MODO.CONSUMO]: '🔴  Modo: Punto de Consumo',
             [MODO.ACOTAR]: '📏  Modo: Acotar',
+            [MODO.PAN]: '🖐️  Modo: Encuadre',
         };
         const label = labels[state.modoActual];
         if (label) {
@@ -31,7 +33,7 @@ export function setupUI(canvas) {
     }
 
     function setActiveButton(btnKey) {
-        ['btn-line', 'btn-compresor', 'btn-consumo', 'btn-valvula', 'btn-acotar', 'btn-borrar'].forEach(id => {
+        ['btn-line', 'btn-compresor', 'btn-consumo', 'btn-valvula', 'btn-acotar', 'btn-borrar', 'btn-pan'].forEach(id => {
             const b = document.getElementById(id);
             if (b) b.classList.remove('active');
         });
@@ -61,6 +63,7 @@ export function setupUI(canvas) {
                 [MODO.VALVULA]: 'Clic sobre una tubería para colocar una Válvula de aislamiento.',
                 [MODO.ACOTAR]: 'Clic en el primer punto a acotar. Segundo clic para generar la cota.',
                 [MODO.BORRAR]: 'MODO BORRADOR: Haz clic sobre cualquier elemento para eliminarlo.',
+                [MODO.PAN]: 'MODO ENCUADRE: Arrastra con el clic izquierdo para desplazar la vista.',
             };
             setStatus(statusMap[modo] || '');
         }
@@ -82,6 +85,9 @@ export function setupUI(canvas) {
 
     const btnBorrar = document.getElementById('btn-borrar');
     if (btnBorrar) btnBorrar.onclick = () => setModo(MODO.BORRAR, 'btn-borrar');
+
+    const btnPan = document.getElementById('btn-pan');
+    if (btnPan) btnPan.onclick = () => setModo(MODO.PAN, 'btn-pan');
 
     const btnUndo = document.getElementById('btn-undo');
     if (btnUndo) btnUndo.onclick = () => {
@@ -154,6 +160,7 @@ export function setupUI(canvas) {
             valvulas_manuales: state.historial.filter(a => a.tipo === 'valvula_manual').map(a => a.datos),
             tipo_red: document.getElementById('select-tipo-red').value || 'lineal',
             caudal_scfm: parseFloat(document.getElementById('input-caudal').value) || 0,
+            is_isometric: state.viewState.isIsometric || false
         };
 
         setStatus('Generando plano, por favor espera...');
@@ -167,14 +174,53 @@ export function setupUI(canvas) {
                 svgModal.classList.remove('hidden');
                 setStatus('Plano generado exitosamente.');
 
-                if (data.lineas) {
                     state.resultadosCalculo = data.lineas;
                     state.piezasCalculo = data.piezas;
                     state.valvulasCalculo = data.valvulas;
                     state.bomCalculo = data.bom; 
                     actualizarTablaBOM(data.bom);
-                }
-                redraw();
+
+                    // Sincronizar historial con las coordenadas rectificadas del servidor
+                    if (data.lineas) {
+                        // 1. Mantener elementos que no son líneas (compresores, consumos, válvulas manuales, cotas)
+                        const otrosElementos = state.historial.filter(a => a.tipo !== 'linea');
+                        
+                        // 2. Transformar las líneas rectificadas al formato del historial
+                        const nuevasLineasHistorial = data.lineas.map(l => ({
+                            tipo: 'linea',
+                            datos: { ...l }
+                        }));
+
+                        // 3. Reconstruir historial
+                        state.historial = [...otrosElementos, ...nuevasLineasHistorial];
+
+                        // 4. Actualizar posiciones de nodos y válvulas si el servidor las rectificó
+                        // (Nota: data.nodos y data.valvulas contienen las posiciones ya fusionadas)
+                        state.historial.forEach(item => {
+                            if (item.tipo === 'nodo') {
+                                const matching = data.nodos.find(n => 
+                                    Math.hypot(n.x - item.datos.x, n.y - item.datos.y) < 50
+                                );
+                                if (matching) {
+                                    item.datos.x = matching.x;
+                                    item.datos.y = matching.y;
+                                    item.datos.z = matching.z || 0;
+                                }
+                            } else if (item.tipo === 'valvula_manual') {
+                                const matching = data.valvulas.find(v => 
+                                    Math.hypot(v.x - item.datos.x, v.y - item.datos.y) < 50
+                                );
+                                if (matching) {
+                                    item.datos.x = matching.x;
+                                    item.datos.y = matching.y;
+                                    item.datos.z = matching.z || 0;
+                                    item.datos.diametro = matching.diametro;
+                                }
+                            }
+                        });
+                    }
+                    
+                    redraw();
 
                 document.getElementById('btn-download').onclick = () => {
                     const blob = new Blob([data.svg], { type: 'image/svg+xml' });
@@ -230,11 +276,7 @@ export function setupUI(canvas) {
     document.getElementById('btn-close-bom').onclick = () => bomModal.classList.add('hidden');
 
     const triggerPDFDownload = async () => {
-        if (!state.proyectoActualId) {
-            alert("⚠️ Debes guardar tu proyecto en la nube al menos una vez antes de poder generar el Informe PDF interactivo.");
-            return;
-        }
-        setStatus('Generando PDF en la nube, por favor espera...');
+        setStatus('Generando PDF, por favor espera...');
         const btn1 = document.getElementById('btn-download-pdf');
         const btn2 = document.getElementById('btn-download-pdf-bom');
         if (btn1) btn1.disabled = true;
@@ -242,30 +284,24 @@ export function setupUI(canvas) {
 
         try {
             // Capturar el dibujo actual del canvas como imagen para el PDF
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
-            const tempCtx = tempCanvas.getContext('2d');
-            
-            // Fondo oscuro para que se vea igual que en la app
-            tempCtx.fillStyle = '#0f172a';
-            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-            
-            // Dibujar el contenido actual (incluyendo el fondo si existe)
-            if (state.bgImageObj) {
-                tempCtx.globalAlpha = state.bgOpacity;
-                const sw = state.bgImageObj.width;
-                const sh = state.bgImageObj.height;
-                tempCtx.drawImage(state.bgImageObj, 0, 0, sw, sh, state.bgOffsetX, state.bgOffsetY, sw * state.bgScale, sh * state.bgScale);
-                tempCtx.globalAlpha = 1.0;
-            }
-            
-            // Dibujar las tuberías y piezas (usamos la función redraw pero sobre el tempCtx)
-            // Para simplicidad, podemos usar el canvas principal si no tiene UI encima, 
-            // pero mejor generar un dataURL limpio.
             const drawingDataUrl = canvas.toDataURL('image/png');
 
-            const resp = await downloadPDF(state.proyectoActualId, drawingDataUrl);
+            let resp;
+            if (state.proyectoActualId) {
+                // Generar usando el ID del proyecto (usando datos guardados en DB)
+                resp = await downloadPDF(state.proyectoActualId, drawingDataUrl);
+            } else {
+                // Generar directamente usando los datos actuales del historial (sin guardar)
+                const plano = {
+                    lineas: state.historial.filter(a => a.tipo === 'linea').map(a => a.datos),
+                    nodos: state.historial.filter(a => a.tipo === 'nodo').map(a => a.datos),
+                    valvulas_manuales: state.historial.filter(a => a.tipo === 'valvula_manual').map(a => a.datos),
+                    tipo_red: document.getElementById('select-tipo-red').value || 'lineal',
+                    caudal_scfm: parseFloat(document.getElementById('input-caudal').value) || 0,
+                    is_isometric: state.viewState.isIsometric || false
+                };
+                resp = await downloadPDFDirect(plano, drawingDataUrl, "Plano Temporal", "S/C");
+            }
             if (!resp.ok) {
                 const data = await resp.json().catch(() => ({}));
                 throw new Error(data.error || 'Error de procesamiento en el servidor');
@@ -367,16 +403,123 @@ export function setupUI(canvas) {
         }
     }
 
-    document.getElementById('bg-opacity').addEventListener('input', (e) => {
-        state.bgOpacity = e.target.value / 100;
-        document.getElementById('bg-opacity-val').textContent = `${e.target.value}%`;
-        scheduleRedraw();
-    });
+    const opac = document.getElementById('bg-opacity');
+    if (opac) {
+        opac.addEventListener('input', (e) => {
+            state.bgOpacity = e.target.value / 100;
+            const val = document.getElementById('bg-opacity-val');
+            if (val) val.textContent = `${e.target.value}%`;
+            scheduleRedraw();
+        });
+    }
 
-    document.getElementById('bg-scale').addEventListener('input', (e) => {
-        state.bgScale = parseFloat(e.target.value);
-        document.getElementById('bg-scale-val').textContent = `${state.bgScale.toFixed(1)}x`;
-        scheduleRedraw();
+    const sca = document.getElementById('bg-scale');
+    if (sca) {
+        sca.addEventListener('input', (e) => {
+            state.bgScale = e.target.value;
+            const val = document.getElementById('bg-scale-val');
+            if (val) val.innerText = `${state.bgScale}x`;
+            invalidateSnapCache();
+            redraw();
+        });
+    }
+
+    const checkIsometric = document.getElementById('check-isometric');
+    const zControl = document.getElementById('z-control');
+    const inputZ = document.getElementById('input-z');
+
+    if (checkIsometric) {
+        checkIsometric.addEventListener('change', (e) => {
+            const isIso = e.target.checked;
+            state.viewState.isIsometric = isIso;
+            if (zControl) zControl.style.display = isIso ? 'flex' : 'none';
+            invalidateSnapCache();
+            redraw();
+            // Si es la carga de un proyecto nuevo o switch inicial, centrar
+            if (isIso) {
+                setTimeout(() => centrarVista(), 100); 
+            }
+        });
+    }
+
+    if (inputZ) {
+        inputZ.addEventListener('input', (e) => {
+            state.viewState.currentZ = parseFloat(e.target.value) || 0;
+            redraw(); // Redibuja el cursor fantasma si hay
+        });
+    }
+
+    function centrarVista() {
+        const canvas = document.getElementById('mainCanvas');
+        if (!canvas) return;
+        
+        const isIso = state.viewState.isIsometric;
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+        
+        // Calcular bounding box del historial
+        let hasItems = false;
+        for (const item of state.historial) {
+            hasItems = true;
+            if (item.tipo === 'linea' || item.tipo === 'cota') {
+                const { x1, y1, x2, y2 } = item.datos;
+                const z1 = item.datos.z1 || 0, z2 = item.datos.z2 || 0;
+                minX = Math.min(minX, x1, x2); maxX = Math.max(maxX, x1, x2);
+                minY = Math.min(minY, y1, y2); maxY = Math.max(maxY, y1, y2);
+                minZ = Math.min(minZ, z1, z2); maxZ = Math.max(maxZ, z1, z2);
+            } else {
+                const { x, y } = item.datos;
+                const z = item.datos.z || 0;
+                minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+                minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+            }
+        }
+        
+        // Si no hay nada, centrar en el origen
+        if (!hasItems) {
+            minX = -100; maxX = 100;
+            minY = -100; maxY = 100;
+            minZ = 0; maxZ = 0;
+        }
+        
+        const midX = (minX + maxX) / 2;
+        const midY = (minY + maxY) / 2;
+        const midZ = (minZ + maxZ) / 2;
+        
+        // Reset offsets temporales para calcular proyección pura
+        const oldOffX = state.viewState.offsetX;
+        const oldOffY = state.viewState.offsetY;
+        state.viewState.offsetX = 0;
+        state.viewState.offsetY = 0;
+        
+        const projected = toScreen(midX, midY, midZ);
+        
+        // El nuevo offset debe poner el punto proyectado en el centro del canvas
+        state.viewState.offsetX = (canvas.width / 2) - projected.x;
+        state.viewState.offsetY = (canvas.height / 2) - projected.y;
+        
+        redraw();
+        setStatus('Vista centrada.');
+    }
+
+    // Exportar para que canvas_events lo use
+    window.centrarVistaGlobal = centrarVista;
+
+    const btnCenter = document.getElementById('btn-center');
+    if (btnCenter) {
+        btnCenter.addEventListener('click', () => {
+            centrarVista();
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'SELECT')) return;
+        
+        if (e.key === 'c' || e.key === 'C') {
+            centrarVista();
+        }
     });
 
     document.getElementById('btn-remove-bg').addEventListener('click', () => {
@@ -423,6 +566,14 @@ export function setupUI(canvas) {
         document.getElementById('login-view').style.display = 'block';
     };
 
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+        btnLogout.onclick = () => {
+            localStorage.removeItem('draw_token');
+            location.reload();
+        };
+    }
+
     // ── Project Saving ──
     function serializeProjectData() {
         return {
@@ -437,12 +588,15 @@ export function setupUI(canvas) {
             bgUrl: state.bgUrl,
             bgOpacity: state.bgOpacity,
             bgScale: state.bgScale,
-            bgLines: state.bgLines
+            bgLines: state.bgLines,
+            isIsometric: state.viewState.isIsometric,
+            currentZ: state.viewState.currentZ
         };
     }
 
     function updateProjectDisplay() {
         const projectNameDisplay = document.getElementById('project-name-display');
+        if (!projectNameDisplay) return;
         if (state.proyectoActualId && state.proyectoActualName) {
             projectNameDisplay.textContent = `📌 ${state.proyectoActualName}`;
         } else {
@@ -451,6 +605,25 @@ export function setupUI(canvas) {
     }
 
     const projectsModal = document.getElementById('projects-modal');
+    document.getElementById('btn-new-project').onclick = () => {
+        if (state.historial.length > 0 && !confirm('¿Estás seguro de que quieres empezar un nuevo proyecto? Se perderán los cambios no guardados.')) {
+            return;
+        }
+        state.historial = [];
+        state.resultadosCalculo = null;
+        state.piezasCalculo = null;
+        state.valvulasCalculo = null;
+        state.bomCalculo = null;
+        state.proyectoActualId = null;
+        state.proyectoActualName = "";
+        state.bgImageObj = null;
+        state.bgLines = [];
+        
+        invalidateSnapCache();
+        setStatus('Nuevo proyecto iniciado.');
+        redraw();
+    };
+
     document.getElementById('btn-save-project').onclick = () => {
         projectsModal.classList.remove('hidden');
         document.getElementById('projects-save-view').style.display = 'block';
@@ -477,7 +650,15 @@ export function setupUI(canvas) {
 
         try {
             const response = await saveProject({ name, client, data: projectData }, state.proyectoActualId);
-            const result = await response.json();
+            const responseText = await response.text();
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseErr) {
+                console.error('Save response not JSON:', response.status, responseText.substring(0, 500));
+                alert(`Error al guardar: El servidor respondió con estado ${response.status}`);
+                return;
+            }
             if (response.ok) {
                 if (result.id) state.proyectoActualId = result.id;
                 state.proyectoActualName = name;
@@ -485,10 +666,12 @@ export function setupUI(canvas) {
                 projectsModal.classList.add('hidden');
                 setStatus(`Proyecto "${name}" guardado exitosamente.`);
             } else {
-                alert('Error al guardar: ' + (result.error || 'Error desconocido'));
+                console.error('Save error:', response.status, result);
+                alert('Error al guardar: ' + (result.error || result.msg || `HTTP ${response.status}`));
             }
         } catch (err) {
-            alert('Error de conexión al guardar el proyecto.');
+            console.error('Save connection error:', err);
+            alert('Error de conexión al guardar el proyecto: ' + err.message);
         } finally {
             btnConfirm.disabled = false;
             btnConfirm.innerText = originalText;
@@ -515,7 +698,17 @@ export function setupUI(canvas) {
         state.bgUrl = data.bgUrl || null;
         state.bgOpacity = data.bgOpacity !== undefined ? data.bgOpacity : 0.5;
         state.bgScale = data.bgScale !== undefined ? data.bgScale : 1.0;
-        state.bgLines = data.bgLines || []; // Load bgLines
+        state.bgLines = data.bgLines || []; 
+        state.viewState.isIsometric = data.isIsometric || false;
+        state.viewState.currentZ = data.currentZ || 0;
+
+        // Sync UI
+        const checkIso = document.getElementById('check-isometric');
+        if (checkIso) checkIso.checked = state.viewState.isIsometric;
+        const zControl = document.getElementById('z-control');
+        if (zControl) zControl.style.display = state.viewState.isIsometric ? 'flex' : 'none';
+        const inputZ = document.getElementById('input-z');
+        if (inputZ) inputZ.value = state.viewState.currentZ;
 
         if (state.bgLines && state.bgLines.length > 0) {
             // If DXF lines are present, clear image data

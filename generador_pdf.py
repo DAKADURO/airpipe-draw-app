@@ -16,7 +16,7 @@ class AIRpipeReport(FPDF):
         # Logo o Título
         self.set_font('Arial', 'B', 15)
         self.set_text_color(22, 33, 62) # Azul oscuro AIRpipe
-        self.cell(0, 10, 'REPORTE DE PROYECTO - AIRpipe DRAW 1.0', 0, 1, 'C')
+        self.cell(0, 10, 'REPORTE DE PROYECTO - AIRpipe DRAW 2.0.1', 0, 1, 'C')
         self.ln(5)
 
     def footer(self):
@@ -53,8 +53,9 @@ def generar_reporte_pdf(proyecto_nombre, cliente, bom, imagen_b64=None):
         try:
             # Decodificar imagen temporal
             img_data = base64.b64decode(imagen_b64.split(',')[-1])
-            img_path = "temp_plano.png"
-            with open(img_path, "wb") as f:
+            import tempfile
+            tmp_fd, img_path = tempfile.mkstemp(suffix='.png')
+            with os.fdopen(tmp_fd, "wb") as f:
                 f.write(img_data)
             
             pdf.set_font('Arial', 'B', 11)
