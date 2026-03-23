@@ -552,5 +552,6 @@ def procesar_plano(plano: dict) -> dict:
         "valvulas": valvulas,
         "caudal_scfm": caudal_scfm,
         "tipo_red": tipo_red,
+        "is_isometric": is_isometric,
         "bom": bom
     }
