@@ -22,10 +22,18 @@ class ValvulaManual(BaseModel):
     diametro: Optional[str] = None
     model_config = ConfigDict(extra='allow')
 
+class Nota(BaseModel):
+    texto: str
+    x: float
+    y: float
+    z: Optional[float] = 0.0
+    model_config = ConfigDict(extra='allow')
+
 class ProcesarRequest(BaseModel):
     lineas: List[Linea] = Field(default_factory=list)
     nodos: List[Nodo] = Field(default_factory=list)
     valvulas_manuales: Optional[List[ValvulaManual]] = Field(default_factory=list)
+    notas: Optional[List[Nota]] = Field(default_factory=list)
     tipo_red: Optional[str] = "lineal"
     caudal_scfm: Optional[float] = 0.0
     is_isometric: Optional[bool] = False

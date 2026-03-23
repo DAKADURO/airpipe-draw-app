@@ -452,6 +452,16 @@ export function initCanvasEvents(canvas, wrapper, floatingDimInput, lengthInput,
                 }
                 state.cotaInicio = null;
             }
+        } else if (state.modoActual === MODO.NOTA) {
+            const texto = prompt("Ingresa el texto de la nota:");
+            if (texto && texto.trim().length > 0) {
+                state.historial.push({
+                    tipo: 'nota',
+                    datos: { x, y, z, texto: texto.trim() }
+                });
+                if (setStatusCb) setStatusCb('Nota añadida.');
+                redraw();
+            }
         }
     });
 
@@ -692,6 +702,12 @@ export function initCanvasEvents(canvas, wrapper, floatingDimInput, lengthInput,
             if (document.activeElement.tagName !== 'INPUT') {
                 const btnCenter = document.getElementById('btn-center');
                 if (btnCenter) btnCenter.click();
+            }
+        }
+        if (e.key === 'n' || e.key === 'N') {
+            if (document.activeElement.tagName !== 'INPUT') {
+                const btnNota = document.getElementById('btn-nota');
+                if (btnNota) btnNota.click();
             }
         }
     });

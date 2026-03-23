@@ -197,6 +197,36 @@ export function renderValvula(x, y, z, anguloGrados, color) {
     ctx.restore();
 }
 
+export function renderNota(x, y, z, texto) {
+    const p = toScreen(x, y, z || 0);
+    ctx.save();
+    
+    const fontSize = Math.max(10, 14 * state.viewState.scale);
+    ctx.font = `${fontSize}px Arial`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    const padding = 4;
+    const metrics = ctx.measureText(texto);
+    const w = metrics.width + padding * 2;
+    const h = fontSize + padding * 2;
+
+    // Fondo semitransparente para legibilidad
+    ctx.fillStyle = 'rgba(30, 30, 30, 0.7)';
+    ctx.fillRect(p.x, p.y, w, h);
+
+    // Borde sutil
+    ctx.strokeStyle = '#007acc';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(p.x, p.y, w, h);
+
+    // Texto
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(texto, p.x + padding, p.y + padding);
+    
+    ctx.restore();
+}
+
 export function renderCota(datos, isPreview = false) {
     const { x1, y1, x2, y2, offset } = datos;
     const p1 = toScreen(x1, y1, datos.z1 || 0);
@@ -676,6 +706,11 @@ export function redraw() {
             if (snap) {
                 renderValvula(snap.x, snap.y, snap.z || 0, snap.angulo, 'rgba(0, 188, 212, 0.6)');
             }
+        }
+
+        const notas = state.historial.filter(a => a.tipo === 'nota');
+        for (const nota of notas) {
+            renderNota(nota.datos.x, nota.datos.y, nota.datos.z || 0, nota.datos.texto);
         }
 
         const cotas = state.historial.filter(a => a.tipo === 'cota');

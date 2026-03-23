@@ -25,19 +25,20 @@ def procesar():
             "lineas":      [l.model_dump() for l in req.lineas],
             "nodos":       [n.model_dump() for n in req.nodos],
             "valvulas_manuales": [v.model_dump() for v in (req.valvulas_manuales or [])],
+            "notas":       [n.model_dump() for n in (req.notas or [])],
             "caudal_scfm": req.caudal_scfm or 0,
             "tipo_red":    req.tipo_red or "lineal",
             "is_isometric": req.is_isometric or False,
         }
 
-        from rectificador import procesar_plano
+        from core.rectificador import procesar_plano
         plano_procesado = procesar_plano(plano)
         
-        from generador_svg import generar_svg
+        from generators.generador_svg import generar_svg
         svg_xml = generar_svg(plano_procesado)
         plano_procesado["svg"] = svg_xml
         
-        from generador_dxf import generar_dxf
+        from generators.generador_dxf import generar_dxf
         dxf_content = generar_dxf(plano_procesado)
 
         if isinstance(dxf_content, str):
@@ -66,7 +67,7 @@ def dxf_to_json():
         
     try:
         content = file.read()
-        from parser_dxf import dxf_a_lineas_json
+        from core.parser_dxf import dxf_a_lineas_json
         lineas = dxf_a_lineas_json(content)
         
         return jsonify({
@@ -95,11 +96,11 @@ def procesar_pdf():
         imagen_b64 = datos.get("imagen")
         
         # Procesar el plano para obtener diámetros y piezas (BOM)
-        from rectificador import procesar_plano
+        from core.rectificador import procesar_plano
         plano_procesado = procesar_plano(plano_raw)
         bom = plano_procesado.get("bom", {})
         
-        from generador_pdf import generar_reporte_pdf
+        from generators.generador_pdf import generar_reporte_pdf
         pdf_content = generar_reporte_pdf(
             proyecto_nombre=datos.get("nombre", "Plano Temporal"),
             cliente=datos.get("cliente", "S/C"),

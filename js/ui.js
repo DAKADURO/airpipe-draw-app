@@ -22,6 +22,7 @@ export function setupUI(canvas) {
             [MODO.CONSUMO]: '🔴  Modo: Punto de Consumo',
             [MODO.ACOTAR]: '📏  Modo: Acotar',
             [MODO.PAN]: '🖐️  Modo: Encuadre',
+            [MODO.NOTA]: '📝  Modo: Nota',
         };
         const label = labels[state.modoActual];
         if (label) {
@@ -33,7 +34,7 @@ export function setupUI(canvas) {
     }
 
     function setActiveButton(btnKey) {
-        ['btn-line', 'btn-compresor', 'btn-consumo', 'btn-valvula', 'btn-acotar', 'btn-borrar', 'btn-pan'].forEach(id => {
+        ['btn-line', 'btn-compresor', 'btn-consumo', 'btn-valvula', 'btn-acotar', 'btn-borrar', 'btn-pan', 'btn-nota'].forEach(id => {
             const b = document.getElementById(id);
             if (b) b.classList.remove('active');
         });
@@ -64,6 +65,7 @@ export function setupUI(canvas) {
                 [MODO.ACOTAR]: 'Clic en el primer punto a acotar. Segundo clic para generar la cota.',
                 [MODO.BORRAR]: 'MODO BORRADOR: Haz clic sobre cualquier elemento para eliminarlo.',
                 [MODO.PAN]: 'MODO ENCUADRE: Arrastra con el clic izquierdo para desplazar la vista.',
+                [MODO.NOTA]: 'MODO NOTA: Haz clic en el canvas para añadir una anotación de texto.',
             };
             setStatus(statusMap[modo] || '');
         }
@@ -88,6 +90,9 @@ export function setupUI(canvas) {
 
     const btnPan = document.getElementById('btn-pan');
     if (btnPan) btnPan.onclick = () => setModo(MODO.PAN, 'btn-pan');
+
+    const btnNota = document.getElementById('btn-nota');
+    if (btnNota) btnNota.onclick = () => setModo(MODO.NOTA, 'btn-nota');
 
     const btnUndo = document.getElementById('btn-undo');
     if (btnUndo) btnUndo.onclick = () => {
@@ -158,6 +163,7 @@ export function setupUI(canvas) {
             lineas: state.historial.filter(a => a.tipo === 'linea').map(a => a.datos),
             nodos: state.historial.filter(a => a.tipo === 'nodo').map(a => a.datos),
             valvulas_manuales: state.historial.filter(a => a.tipo === 'valvula_manual').map(a => a.datos),
+            notas: state.historial.filter(a => a.tipo === 'nota').map(a => a.datos),
             tipo_red: document.getElementById('select-tipo-red').value || 'lineal',
             caudal_scfm: parseFloat(document.getElementById('input-caudal').value) || 0,
             is_isometric: state.viewState.isIsometric || false
@@ -296,6 +302,7 @@ export function setupUI(canvas) {
                     lineas: state.historial.filter(a => a.tipo === 'linea').map(a => a.datos),
                     nodos: state.historial.filter(a => a.tipo === 'nodo').map(a => a.datos),
                     valvulas_manuales: state.historial.filter(a => a.tipo === 'valvula_manual').map(a => a.datos),
+                    notas: state.historial.filter(a => a.tipo === 'nota').map(a => a.datos),
                     tipo_red: document.getElementById('select-tipo-red').value || 'lineal',
                     caudal_scfm: parseFloat(document.getElementById('input-caudal').value) || 0,
                     is_isometric: state.viewState.isIsometric || false

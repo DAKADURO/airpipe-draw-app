@@ -152,21 +152,32 @@ def generar_svg(plano: dict, ancho: int = 1920, alto: int = 1080) -> str:
             )
         svg.append('  </g>')
     
-    # Válvulas Automáticas
-    valvulas = plano.get("valvulas", [])
-    if valvulas:
-        svg.append('  <g id="valvulas">')
-        for v in valvulas:
+        svg.append('  </g>')
+    
+    # Válvulas Manuales (Añadidas desde el historial en el frontend)
+    valvulas_manuales = plano.get("valvulas_manuales", [])
+    if valvulas_manuales:
+        svg.append('  <g id="valvulas_manuales">')
+        for v in valvulas_manuales:
             cx, cy = v["x"], v["y"]
-            angulo = v["angulo"]
-            # Grupo con transformación para rotar
+            angulo = v.get("angulo", 0)
             svg.append(f'    <g transform="translate({cx},{cy}) rotate({angulo})">')
-            # Símbolo de Válvula: Dos triángulos encontrados (Bowtie) ⧓
-            # Path: Triángulo Izq + Triángulo Der
-            # M -6 -4 L 0 0 L -6 4 Z (Izq)
-            # M 6 -4 L 0 0 L 6 4 Z (Der)
-            svg.append('      <path d="M -6 -4 L 0 0 L -6 4 Z M 6 -4 L 0 0 L 6 4 Z" fill="#00BCD4" stroke="white" stroke-width="1"/>')
+            svg.append('      <path d="M -6 -4 L 0 0 L -6 4 Z M 6 -4 L 0 0 L 6 4 Z" fill="#FFC107" stroke="white" stroke-width="1"/>')
             svg.append('    </g>')
+        svg.append('  </g>')
+
+    # Notas / Anotaciones
+    notas = plano.get("notas", [])
+    if notas:
+        svg.append('  <g id="notas">')
+        for n in notas:
+            nx, ny = n["x"], n["y"]
+            txt = n["texto"]
+            # Estilo similar al canvas: fondo + texto
+            # Estimación simple de ancho: 7px por caracter
+            estimate_w = len(txt) * 7 + 8
+            svg.append(f'    <rect x="{nx}" y="{ny}" width="{estimate_w}" height="16" fill="rgba(30,30,30,0.6)" stroke="#007acc" stroke-width="0.5"/>')
+            svg.append(f'    <text x="{nx+4}" y="{ny+12}" fill="black" font-family="Arial" font-size="10">{txt}</text>')
         svg.append('  </g>')
 
     svg.append('</svg>')

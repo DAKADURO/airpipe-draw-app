@@ -23,6 +23,7 @@ export const MODO = {
     ACOTAR: 'acotar',
     BORRAR: 'borrar',
     PAN: 'pan',
+    NOTA: 'nota',
 };
 
 // Nuevos colores estilo AutoCAD (Carbón)

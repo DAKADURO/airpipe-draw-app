@@ -326,18 +326,21 @@ export function findItemAt(wx, wy) {
         }
     }
 
-    // 3. Probar Válvulas
-    const radioValvulaPxs = 12;
+    // 4. Probar Notas
+    const hNota = 20; // Aproximadamente el alto de la caja en píxeles
     for (const a of state.historial) {
-        if (a.tipo === 'valvula_manual') {
+        if (a.tipo === 'nota') {
             const z = a.datos.z || 0;
-            const valveP = toScreen(a.datos.x, a.datos.y, z);
-            const d = Math.hypot(mousePos.x - valveP.x, mousePos.y - valveP.y);
-            if (d <= radioValvulaPxs) return a;
+            const noteP = toScreen(a.datos.x, a.datos.y, z);
+            // Caja aproximada para hit-test
+            if (mousePos.x >= noteP.x && mousePos.x <= noteP.x + 100 &&
+                mousePos.y >= noteP.y && mousePos.y <= noteP.y + hNota) {
+                return a;
+            }
         }
     }
 
-    // 4. Probar Líneas (Tuberías)
+    // 5. Probar Líneas (Tuberías)
     const snapLinea = getLineSnap(wx, wy, isIso ? state.viewState.currentZ : 0);
     if (snapLinea) {
         return state.historial.find(a => 

@@ -509,14 +509,14 @@ def procesar_plano(plano: dict) -> dict:
     lineas, nodos = fusionar_intersecciones(lineas, nodos)
 
     # Paso 4: dimensionamiento (siempre se calcula para tener longitudes en el BOM)
-    from dimensionador import dimensionar_lineas
+    from .dimensionador import dimensionar_lineas
     lineas = dimensionar_lineas(lineas, caudal_scfm or 0, tipo_red or "lineal")
 
     # Paso 4b: Simplificar tramos colineales para evitar Uniones redundantes
     lineas = simplificar_red(lineas)
 
     # Paso 5: detección de piezas (codos, tes, cruces, uniones, tapones)
-    from detector_piezas import detectar_piezas
+    from .detector_piezas import detectar_piezas
     piezas = detectar_piezas(lineas, nodos_hardware=nodos, is_isometric=is_isometric)
 
     # Paso 6: Válvulas
@@ -542,7 +542,7 @@ def procesar_plano(plano: dict) -> dict:
             v["diametro"] = best_d
 
     # Paso 7: Generar BOM (Lista de Materiales)
-    from generador_bom import generar_bom
+    from generators.generador_bom import generar_bom
     bom = generar_bom(lineas, piezas, valvulas)
 
     return {

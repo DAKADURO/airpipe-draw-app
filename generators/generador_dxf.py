@@ -167,6 +167,39 @@ def generar_dxf(plano: dict) -> str:
             msp.add_lwpolyline(transform(t1), dxfattribs={'layer': 'VALVULAS', 'closed': True})
             msp.add_lwpolyline(transform(t2), dxfattribs={'layer': 'VALVULAS', 'closed': True})
 
+    # Válvulas Manuales (Color Oro/Amarillo)
+    valvulas_manuales = plano.get("valvulas_manuales", [])
+    if valvulas_manuales:
+        if 'VALVULAS_MAN' not in doc.layers:
+            doc.layers.new(name='VALVULAS_MAN', dxfattribs={'color': 2}) # 2=Yellow
+        for v in valvulas_manuales:
+            cx = v["x"] * SCALE_FACTOR
+            cy = -v["y"] * SCALE_FACTOR
+            ang_deg = -v.get("angulo", 0)
+            rad = math.radians(ang_deg)
+            cos_a = math.cos(rad)
+            sin_a = math.sin(rad)
+            t1 = [(-0.12, -0.08), (0, 0), (-0.12, 0.08)]
+            t2 = [(0.12, -0.08), (0, 0), (0.12, 0.08)]
+            def transform_m(pts):
+                return [(cx + (px*cos_a - py*sin_a), cy + (px*sin_a + py*cos_a)) for px, py in pts]
+            msp.add_lwpolyline(transform_m(t1), dxfattribs={'layer': 'VALVULAS_MAN', 'closed': True})
+            msp.add_lwpolyline(transform_m(t2), dxfattribs={'layer': 'VALVULAS_MAN', 'closed': True})
+
+    # Notas / Anotaciones
+    notas = plano.get("notas", [])
+    if notas:
+        if 'NOTAS' not in doc.layers:
+            doc.layers.new(name='NOTAS', dxfattribs={'color': 7})
+        for n in notas:
+            nx = n["x"] * SCALE_FACTOR
+            ny = -n["y"] * SCALE_FACTOR
+            msp.add_text(n["texto"], dxfattribs={
+                'layer': 'NOTAS',
+                'height': 0.25,
+                'color': 7
+            }).set_placement((nx, ny), align=TextEntityAlignment.LEFT)
+
     # Retornar el contenido del archivo como string
     with tempfile.NamedTemporaryFile(suffix='.dxf', delete=False, mode='w', encoding='utf-8') as tmp:
         tmp_path = tmp.name
