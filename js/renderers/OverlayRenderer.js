@@ -77,22 +77,43 @@ export function drawOverlay(ctx, canvas, state) {
 
     if (state.activeGuides && state.activeGuides.length > 0) {
         ctx.save();
-        ctx.strokeStyle = '#00BCD4'; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
-        ctx.beginPath();
         for (const guia of state.activeGuides) {
             const p1 = toScreen(guia.x1, guia.y1, guia.z1 || 0);
             const p2 = toScreen(guia.x2, guia.y2, guia.z2 || 0);
-            ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+
+            // Color por tipo de guía
+            const isDiag = guia.tipo === 'diagonal';
+            ctx.strokeStyle = isDiag ? 'rgba(255, 152, 0, 0.6)' : 'rgba(0, 188, 212, 0.5)';
+            ctx.lineWidth = 0.8;
+            ctx.setLineDash([4, 4]);
+
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+
+            // Marcador de intersección (diamante pequeño en el punto de destino)
+            ctx.setLineDash([]);
+            ctx.strokeStyle = isDiag ? '#FF9800' : '#00BCD4';
+            ctx.lineWidth = 1.5;
+            const cr = 4;
+            ctx.beginPath();
+            ctx.moveTo(p2.x, p2.y - cr);
+            ctx.lineTo(p2.x + cr, p2.y);
+            ctx.lineTo(p2.x, p2.y + cr);
+            ctx.lineTo(p2.x - cr, p2.y);
+            ctx.closePath();
+            ctx.stroke();
+
+            // 'X' en el punto fuente
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = isDiag ? 'rgba(255, 152, 0, 0.4)' : 'rgba(0, 188, 212, 0.35)';
+            const xr = 3;
+            ctx.beginPath();
+            ctx.moveTo(p1.x - xr, p1.y - xr); ctx.lineTo(p1.x + xr, p1.y + xr);
+            ctx.moveTo(p1.x - xr, p1.y + xr); ctx.lineTo(p1.x + xr, p1.y - xr);
+            ctx.stroke();
         }
-        ctx.stroke();
-        ctx.setLineDash([]); ctx.beginPath();
-        const cr = 3;
-        for (const guia of state.activeGuides) {
-            const p = toScreen(guia.x1, guia.y1, guia.z1 || 0);
-            ctx.moveTo(p.x - cr, p.y - cr); ctx.lineTo(p.x + cr, p.y + cr);
-            ctx.moveTo(p.x - cr, p.y + cr); ctx.lineTo(p.x + cr, p.y - cr);
-        }
-        ctx.stroke();
         ctx.restore();
     }
 

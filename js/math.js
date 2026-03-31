@@ -176,50 +176,96 @@ export function getAngleSnapPoint(x1, y1, x2, y2, z1) {
 export function getSmartSnap(mouseX, mouseY, outGuides) {
     const puntos = getSnapPoints(); 
     const currentGuideTolerance = SNAP_GUIDE_TOLERANCE / state.viewState.scale;
+    const isIso = state.viewState.isIsometric;
+
+    // Solo guías de alineación en modo 2D
+    if (isIso) {
+        outGuides.length = 0;
+        return null;
+    }
 
     let bestX = null;
     let bestY = null;
     let minDistX = Infinity;
     let minDistY = Infinity;
 
-    outGuides.length = 0; // Clear array using reference mutation
+    // También buscar alineación en 45° con endpoints existentes
+    let best45 = null;
+    let minDist45 = Infinity;
+
+    outGuides.length = 0;
 
     for (const p of puntos) {
-        const diffX = Math.abs(p.x - mouseX);
-        if (diffX <= currentGuideTolerance && diffX < minDistX) {
-            minDistX = diffX;
-            bestX = p.x;
-        }
+        // --- Alineación Horizontal (misma Y) ---
         const diffY = Math.abs(p.y - mouseY);
         if (diffY <= currentGuideTolerance && diffY < minDistY) {
             minDistY = diffY;
-            bestY = p.y;
+            bestY = { val: p.y, source: p };
+        }
+
+        // --- Alineación Vertical (misma X) ---
+        const diffX = Math.abs(p.x - mouseX);
+        if (diffX <= currentGuideTolerance && diffX < minDistX) {
+            minDistX = diffX;
+            bestX = { val: p.x, source: p };
+        }
+
+        // --- Alineación 45° ---
+        // Punto del mouse en diagonal 45° pasa por (px, py) si |dx| ≈ |dy|
+        const dx45 = mouseX - p.x;
+        const dy45 = mouseY - p.y;
+        const diff45 = Math.abs(Math.abs(dx45) - Math.abs(dy45));
+        if (diff45 <= currentGuideTolerance && diff45 < minDist45 && Math.abs(dx45) > 5) {
+            minDist45 = diff45;
+            // Proyectar al punto exacto sobre la diagonal 45°
+            const sign = dy45 >= 0 ? 1 : -1;
+            const avgDist = (Math.abs(dx45) + Math.abs(dy45)) / 2;
+            const signX = dx45 >= 0 ? 1 : -1;
+            best45 = {
+                x: p.x + signX * avgDist,
+                y: p.y + sign * avgDist,
+                source: p
+            };
         }
     }
 
-    if (bestX === null && bestY === null) return null;
+    if (bestX === null && bestY === null && best45 === null) return null;
 
     const result = { x: mouseX, y: mouseY };
 
     if (bestX !== null) {
-        result.x = bestX;
-        for (const p of puntos) {
-            if (Math.abs(p.x - bestX) < 0.1) {
-                outGuides.push({ x1: p.x, y1: p.y, x2: result.x, y2: result.y });
-                break;
-            }
-        }
+        result.x = bestX.val;
+        const p = bestX.source;
+        // Guía vertical desde el endpoint fuente hasta el cursor
+        outGuides.push({ 
+            x1: p.x, y1: p.y, 
+            x2: result.x, y2: result.y,
+            tipo: 'vertical'
+        });
     }
 
     if (bestY !== null) {
-        result.y = bestY;
-        for (const p of puntos) {
-            if (Math.abs(p.y - bestY) < 0.1) {
-                outGuides.push({ x1: p.x, y1: p.y, x2: result.x, y2: result.y });
-                break;
-            }
-        }
+        result.y = bestY.val;
+        const p = bestY.source;
+        // Guía horizontal desde el endpoint fuente hasta el cursor
+        outGuides.push({ 
+            x1: p.x, y1: p.y, 
+            x2: result.x, y2: result.y,
+            tipo: 'horizontal'
+        });
     }
+
+    // Si hay alineación 45° y no hay snap H/V más fuerte, usar 45°
+    if (best45 !== null && bestX === null && bestY === null) {
+        result.x = best45.x;
+        result.y = best45.y;
+        outGuides.push({
+            x1: best45.source.x, y1: best45.source.y,
+            x2: result.x, y2: result.y,
+            tipo: 'diagonal'
+        });
+    }
+
     return result;
 }
 
