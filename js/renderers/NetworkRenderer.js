@@ -262,10 +262,10 @@ export function drawLinea(ctx, x1, y1, z1 = 0, x2, y2, z2 = 0, preview = false, 
         const dx = x2 - x1;
         const dy = y2 - y1;
         const dz = z2 - z1;
+        // En 2D, solo las líneas con desplazamiento puro en Z son verticales (risers)
         const isTrueVertical = (Math.abs(dx) < 1.0 && Math.abs(dy) < 1.0 && Math.abs(dz) > 1.0);
-        const isSimulatedVertical = (Math.abs(dx) > 1 && Math.abs(Math.abs(dx) - Math.abs(dy)) < 5.0);
 
-        if (isTrueVertical || isSimulatedVertical) {
+        if (isTrueVertical) {
             const p1S = toScreen(x1, y1, z1, state);
             ctx.save();
             const r = 6;
