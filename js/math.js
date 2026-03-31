@@ -178,12 +178,6 @@ export function getSmartSnap(mouseX, mouseY, outGuides) {
     const currentGuideTolerance = SNAP_GUIDE_TOLERANCE / state.viewState.scale;
     const isIso = state.viewState.isIsometric;
 
-    // Solo guías de alineación en modo 2D
-    if (isIso) {
-        outGuides.length = 0;
-        return null;
-    }
-
     let bestX = null;
     let bestY = null;
     let minDistX = Infinity;
@@ -210,22 +204,24 @@ export function getSmartSnap(mouseX, mouseY, outGuides) {
             bestX = { val: p.x, source: p };
         }
 
-        // --- Alineación 45° ---
-        // Punto del mouse en diagonal 45° pasa por (px, py) si |dx| ≈ |dy|
-        const dx45 = mouseX - p.x;
-        const dy45 = mouseY - p.y;
-        const diff45 = Math.abs(Math.abs(dx45) - Math.abs(dy45));
-        if (diff45 <= currentGuideTolerance && diff45 < minDist45 && Math.abs(dx45) > 5) {
-            minDist45 = diff45;
-            // Proyectar al punto exacto sobre la diagonal 45°
-            const sign = dy45 >= 0 ? 1 : -1;
-            const avgDist = (Math.abs(dx45) + Math.abs(dy45)) / 2;
-            const signX = dx45 >= 0 ? 1 : -1;
-            best45 = {
-                x: p.x + signX * avgDist,
-                y: p.y + sign * avgDist,
-                source: p
-            };
+        // --- Alineación 45° (solo 2D) ---
+        if (!isIso) {
+            // Punto del mouse en diagonal 45° pasa por (px, py) si |dx| ≈ |dy|
+            const dx45 = mouseX - p.x;
+            const dy45 = mouseY - p.y;
+            const diff45 = Math.abs(Math.abs(dx45) - Math.abs(dy45));
+            if (diff45 <= currentGuideTolerance && diff45 < minDist45 && Math.abs(dx45) > 5) {
+                minDist45 = diff45;
+                // Proyectar al punto exacto sobre la diagonal 45°
+                const sign = dy45 >= 0 ? 1 : -1;
+                const avgDist = (Math.abs(dx45) + Math.abs(dy45)) / 2;
+                const signX = dx45 >= 0 ? 1 : -1;
+                best45 = {
+                    x: p.x + signX * avgDist,
+                    y: p.y + sign * avgDist,
+                    source: p
+                };
+            }
         }
     }
 
