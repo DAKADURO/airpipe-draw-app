@@ -105,6 +105,10 @@ export function setupScenePanel() {
         import('../drawing.js').then(d => d.redraw());
     });
 
+    setupIsometricUI();
+}
+
+export function setupIsometricUI() {
     const checkIsometric = document.getElementById('check-isometric');
     const zControl = document.getElementById('z-control');
     const inputZ = document.getElementById('input-z');
@@ -113,7 +117,7 @@ export function setupScenePanel() {
         checkIsometric.addEventListener('change', (e) => {
             const isIso = e.target.checked;
             state.viewState.isIsometric = isIso;
-            if (zControl) zControl.style.display = isIso ? 'flex' : 'none';
+            syncIsometricUI();
             invalidateSnapCache();
             import('../drawing.js').then(d => {
                 d.redraw();
@@ -130,4 +134,22 @@ export function setupScenePanel() {
             import('../drawing.js').then(d => d.redraw()); 
         });
     }
+
+    // Initial sync
+    syncIsometricUI();
+}
+
+/**
+ * Synchronizes the UI elements (checkbox, Z-control visibility) with the application state.
+ */
+export function syncIsometricUI() {
+    const checkIsometric = document.getElementById('check-isometric');
+    const zControl = document.getElementById('z-control');
+    const inputZ = document.getElementById('input-z');
+
+    const isIso = state.viewState.isIsometric;
+
+    if (checkIsometric) checkIsometric.checked = isIso;
+    if (zControl) zControl.style.display = isIso ? 'flex' : 'none';
+    if (inputZ) inputZ.value = state.viewState.currentZ || 0;
 }

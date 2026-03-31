@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { procesarPlano, downloadPDF, downloadPDFDirect } from '../api.js';
 import { setStatus } from './tools.js';
+import { syncIsometricUI } from './scene_panel.js';
 
 export function setupExports(canvas) {
     const svgContainer = document.getElementById('svg-container');
@@ -60,7 +61,10 @@ export function setupExports(canvas) {
                     });
                 }
                 
-                import('../drawing.js').then(d => d.redraw());
+                import('../drawing.js').then(d => {
+                    syncIsometricUI();
+                    d.redraw();
+                });
 
                 document.getElementById('btn-download').onclick = () => {
                     const blob = new Blob([data.svg], { type: 'image/svg+xml' });

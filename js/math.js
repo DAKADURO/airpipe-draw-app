@@ -189,7 +189,18 @@ export function getSmartSnap(mouseX, mouseY, outGuides) {
 
     outGuides.length = 0;
 
-    for (const p of puntos) {
+    const isDrawingLine = state.lineaIniciada && state.puntoInicio;
+    
+    // Filter out self-snap (the punto de inicio itself)
+    const referencePoints = isDrawingLine
+        ? puntos.filter(p => {
+            const dx = Math.abs(p.x - state.puntoInicio.x);
+            const dy = Math.abs(p.y - state.puntoInicio.y);
+            return dx > 0.5 || dy > 0.5;
+          })
+        : puntos;
+
+    for (const p of referencePoints) {
         // --- Alineación Horizontal (misma Y) ---
         const diffY = Math.abs(p.y - mouseY);
         if (diffY <= currentGuideTolerance && diffY < minDistY) {
@@ -206,13 +217,11 @@ export function getSmartSnap(mouseX, mouseY, outGuides) {
 
         // --- Alineación 45° (solo 2D) ---
         if (!isIso) {
-            // Punto del mouse en diagonal 45° pasa por (px, py) si |dx| ≈ |dy|
             const dx45 = mouseX - p.x;
             const dy45 = mouseY - p.y;
             const diff45 = Math.abs(Math.abs(dx45) - Math.abs(dy45));
             if (diff45 <= currentGuideTolerance && diff45 < minDist45 && Math.abs(dx45) > 5) {
                 minDist45 = diff45;
-                // Proyectar al punto exacto sobre la diagonal 45°
                 const sign = dy45 >= 0 ? 1 : -1;
                 const avgDist = (Math.abs(dx45) + Math.abs(dy45)) / 2;
                 const signX = dx45 >= 0 ? 1 : -1;
@@ -232,9 +241,10 @@ export function getSmartSnap(mouseX, mouseY, outGuides) {
 
     if (bestX !== null) {
         result.x = bestX.val;
-        const p = bestX.source;
+        const matchedPt = bestX.source;
+        // Guide from the MATCHED point to cursor — shows what you're aligned with (symmetry)
         outGuides.push({ 
-            x1: p.x, y1: p.y, z1: p.z || 0,
+            x1: matchedPt.x, y1: matchedPt.y, z1: matchedPt.z || 0,
             x2: result.x, y2: result.y, z2: currentZ,
             tipo: 'vertical'
         });
@@ -242,9 +252,10 @@ export function getSmartSnap(mouseX, mouseY, outGuides) {
 
     if (bestY !== null) {
         result.y = bestY.val;
-        const p = bestY.source;
+        const matchedPt = bestY.source;
+        // Guide from the MATCHED point to cursor — shows what you're aligned with (symmetry)
         outGuides.push({ 
-            x1: p.x, y1: p.y, z1: p.z || 0,
+            x1: matchedPt.x, y1: matchedPt.y, z1: matchedPt.z || 0,
             x2: result.x, y2: result.y, z2: currentZ,
             tipo: 'horizontal'
         });
@@ -263,6 +274,8 @@ export function getSmartSnap(mouseX, mouseY, outGuides) {
 
     return result;
 }
+
+
 
 export function getLineSnap(x, y, z = 0) {
     const TOLERANCIA = 20 / state.viewState.scale;
@@ -406,8 +419,9 @@ export function findItemAt(wx, wy, screenX = null, screenY = null) {
 }
 
 /**
- * Divide una línea en segmentos basados en puntos de unión (extremos de otras líneas o nodos)
- * que existen sobre su trayectoria.
+ * Divide una línea en segmentos basados en:
+ * 1. Puntos de unión (extremos de otras líneas o nodos) que existen sobre su trayectoria
+ * 2. Intersecciones reales (cruces) con otras líneas — estilo TRIM de AutoCAD
  */
 export function splitLineAtJunctions(lineObject) {
     const { x1, y1, x2, y2 } = lineObject.datos;
@@ -417,10 +431,10 @@ export function splitLineAtJunctions(lineObject) {
     const TOL = 0.5; // Tolerancia en metros (mundo)
     const junctionPoints = [];
 
-    // 1. Recopilar candidatos de unión del historial
     for (const other of state.historial) {
         if (other === lineObject) continue;
 
+        // --- A. Extremos de otras líneas/nodos que caen SOBRE esta línea ---
         let candidates = [];
         if (other.tipo === 'linea') {
             candidates.push({ x: other.datos.x1, y: other.datos.y1, z: other.datos.z1 || 0 });
@@ -430,7 +444,6 @@ export function splitLineAtJunctions(lineObject) {
         }
 
         for (const p of candidates) {
-            // Verificar si p está sobre el segmento (x1,y1,z1)-(x2,y2,z2)
             const dx = x2 - x1;
             const dy = y2 - y1;
             const dz = z2 - z1;
@@ -439,7 +452,6 @@ export function splitLineAtJunctions(lineObject) {
 
             const t = ((p.x - x1)*dx + (p.y - y1)*dy + (p.z - z1)*dz) / lenSq;
 
-            // t debe estar estrictamente entre 0 y 1 para ser un punto de corte interno
             if (t > 0.01 && t < 0.99) {
                 const projX = x1 + t * dx;
                 const projY = y1 + t * dy;
@@ -450,6 +462,37 @@ export function splitLineAtJunctions(lineObject) {
                     if (!junctionPoints.some(jp => Math.abs(jp.t - t) < 0.01)) {
                         junctionPoints.push({ x: projX, y: projY, z: projZ, t });
                     }
+                }
+            }
+        }
+
+        // --- B. Intersecciones REALES línea-línea (cruces en el plano) — TRIM style ---
+        if (other.tipo === 'linea') {
+            const ox1 = other.datos.x1, oy1 = other.datos.y1;
+            const ox2 = other.datos.x2, oy2 = other.datos.y2;
+
+            // Intersección paramétrica 2D (proyección al plano XY)
+            const dAx = x2 - x1;
+            const dAy = y2 - y1;
+            const dBx = ox2 - ox1;
+            const dBy = oy2 - oy1;
+
+            const denom = dAx * dBy - dAy * dBx;
+            if (Math.abs(denom) < 0.0001) continue; // Paralelas
+
+            const tA = ((ox1 - x1) * dBy - (oy1 - y1) * dBx) / denom;
+            const tB = ((ox1 - x1) * dAy - (oy1 - y1) * dAx) / denom;
+
+            // Ambos parámetros deben estar estrictamente dentro del segmento
+            if (tA > 0.01 && tA < 0.99 && tB > 0.01 && tB < 0.99) {
+                const ix = x1 + tA * dAx;
+                const iy = y1 + tA * dAy;
+                // Interpolar Z a lo largo de la línea objetivo
+                const iz = z1 + tA * (z2 - z1);
+
+                // Verificar que no sea un duplicado
+                if (!junctionPoints.some(jp => Math.abs(jp.t - tA) < 0.01)) {
+                    junctionPoints.push({ x: ix, y: iy, z: iz, t: tA });
                 }
             }
         }
@@ -477,6 +520,7 @@ export function splitLineAtJunctions(lineObject) {
 
     return segments;
 }
+
 
 /**
  * Devuelve todos los elementos dentro de una caja trazada en pantalla.

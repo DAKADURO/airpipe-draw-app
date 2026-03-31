@@ -1,6 +1,7 @@
 import { state, invalidateSnapCache } from '../state.js';
 import { saveProject, getProjects, getProject, deleteProject } from '../api.js';
 import { setStatus } from './tools.js';
+import { syncIsometricUI } from './scene_panel.js';
 
 export function serializeProjectData() {
     return {
@@ -43,13 +44,8 @@ export function restoreProjectData(data) {
     state.bgLines = data.bgLines || []; 
     state.viewState.isIsometric = data.isIsometric || false;
     state.viewState.currentZ = data.currentZ || 0;
-
-    const checkIso = document.getElementById('check-isometric');
-    if (checkIso) checkIso.checked = state.viewState.isIsometric;
-    const zControl = document.getElementById('z-control');
-    if (zControl) zControl.style.display = state.viewState.isIsometric ? 'flex' : 'none';
-    const inputZ = document.getElementById('input-z');
-    if (inputZ) inputZ.value = state.viewState.currentZ;
+    
+    syncIsometricUI();
 
     const bgControls = document.getElementById('bg-controls');
     if (state.bgLines && state.bgLines.length > 0) {
