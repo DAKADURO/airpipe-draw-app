@@ -235,7 +235,7 @@ def dimensionar_lineas(lineas: list[dict], caudal_scfm: float, tipo_red: str = "
     # 2. Determinar diámetro global para toda la red
     diametro_global = calcular_diametro(caudal_scfm, longitud_total_pies, tipo_red)
 
-    # 3. Asignar diámetro global a cada línea
+    # 3. Asignar diámetro global a cada línea (solo si no tiene uno manual)
     for linea in lineas:
         dx = linea["x2"] - linea["x1"]
         dy = linea["y2"] - linea["y1"]
@@ -244,7 +244,10 @@ def dimensionar_lineas(lineas: list[dict], caudal_scfm: float, tipo_red: str = "
         l_pies = px_a_pies(l_px)
         l_metros = px_a_metros(l_px)
 
-        linea["diametro"] = diametro_global
+        # Si ya tiene un diámetro (manual), respetarlo.
+        if not linea.get("diametro"):
+            linea["diametro"] = diametro_global
+        
         linea["longitud_pies"] = round(l_pies, 2)
         linea["longitud_metros"] = round(l_metros, 2)
 

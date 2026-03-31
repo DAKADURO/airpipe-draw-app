@@ -24,6 +24,8 @@ export const MODO = {
     BORRAR: 'borrar',
     PAN: 'pan',
     NOTA: 'nota',
+    DESFASE: 'desfase',
+    MOVER: 'mover',
 };
 
 // Nuevos colores estilo AutoCAD (Carbón)

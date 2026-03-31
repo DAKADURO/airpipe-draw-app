@@ -272,28 +272,37 @@ export function getLineSnap(x, y, z = 0) {
     return closest;
 }
 
-export function getCotaAt(wx, wy) {
+export function getCotaAt(screenX, screenY) {
     const cotas = state.historial.filter(a => a.tipo === 'cota');
     for (const c of cotas) {
         const { x1, y1, x2, y2, offset } = c.datos;
-        const dx = x2 - x1;
-        const dy = y2 - y1;
-        const length = Math.hypot(dx, dy);
-        if (length < 1) continue;
+        
+        const p1 = toScreen(x1, y1, c.datos.z1 || 0);
+        const p2 = toScreen(x2, y2, c.datos.z2 || 0);
 
-        const ux = dx / length;
-        const uy = dy / length;
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const lengthScreen = Math.hypot(dx, dy);
+        if (lengthScreen < 1) continue;
+
+        const ux = dx / lengthScreen;
+        const uy = dy / lengthScreen;
         const px = -uy;
         const py = ux;
-        const off = offset || 30 / state.viewState.scale;
+        const off = (offset !== undefined ? offset : (30 / state.viewState.scale)) * state.viewState.scale;
 
-        const midX = (x1 + x2) / 2 + px * off;
-        const midY = (y1 + y2) / 2 + py * off;
+        const cx1 = p1.x + px * off;
+        const cy1 = p1.y + py * off;
+        const cx2 = p2.x + px * off;
+        const cy2 = p2.y + py * off;
 
-        const hitH = 30 / state.viewState.scale;
+        const midX = (cx1 + cx2) / 2;
+        const midY = (cy1 + cy2) / 2;
 
-        const dMouse = Math.hypot(wx - midX, wy - midY);
-        if (dMouse < hitH) { 
+        const hitRadius = 25; // Tamaño del área cliquable en pantalla
+
+        const dMouse = Math.hypot(screenX - midX, screenY - midY);
+        if (dMouse < hitRadius) { 
             return { cota: c, midX, midY };
         }
     }
@@ -304,21 +313,21 @@ export function getCotaAt(wx, wy) {
  * Encuentra un elemento en el historial que coincida con la posición (wx, wy)
  * con una tolerancia basada en la escala actual.
  */
-export function findItemAt(wx, wy) {
+export function findItemAt(wx, wy, screenX = null, screenY = null) {
     const s = state.viewState.scale;
     const isIso = state.viewState.isIsometric;
     
-    // 1. Probar Cotas primero (hit-box de texto/centro)
-    const cotaHit = getCotaAt(wx, wy);
-    if (cotaHit) return cotaHit.cota;
+    // Obtener posición del mouse en pantalla
+    const mousePos = screenX !== null ? { x: screenX, y: screenY } : toScreen(wx, wy, isIso ? state.viewState.currentZ : 0);
 
-    // Obtener posición del mouse en pantalla para comparación visual en ISO
-    const mousePos = toScreen(wx, wy, isIso ? state.viewState.currentZ : 0);
+    // 1. Probar Cotas primero (hit-box de texto/centro en pantalla)
+    const cotaHit = getCotaAt(mousePos.x, mousePos.y);
+    if (cotaHit) return cotaHit.cota;
 
     // 2. Probar Nodos (Compresor / Consumo)
     const radioNodoPxs = 15; // píxeles físicos en pantalla
     for (const a of state.historial) {
-        if (a.tipo === 'nodo') {
+        if (a.tipo === 'nodo' || a.tipo === 'valvula_manual') {
             const z = a.datos.z || 0;
             const nodeP = toScreen(a.datos.x, a.datos.y, z);
             const d = Math.hypot(mousePos.x - nodeP.x, mousePos.y - nodeP.y);
@@ -426,4 +435,47 @@ export function splitLineAtJunctions(lineObject) {
     });
 
     return segments;
+}
+
+/**
+ * Devuelve todos los elementos dentro de una caja trazada en pantalla.
+ * @param {Object} box - Objeto con {x, y, w, h} (Coordenadas de pantalla crudas)
+ * @returns {Set} - Un conjunto de elementos del historial atrapados
+ */
+export function getItemsInScreenBox(box) {
+    const selected = new Set();
+    const left = Math.min(box.x, box.x + box.w);
+    const right = Math.max(box.x, box.x + box.w);
+    const top = Math.min(box.y, box.y + box.h);
+    const bottom = Math.max(box.y, box.y + box.h);
+
+    const inside = (px, py) => px >= left && px <= right && py >= top && py <= bottom;
+
+    for (const a of state.historial) {
+        if (a.tipo === 'linea') {
+            const p1 = toScreen(a.datos.x1, a.datos.y1, a.datos.z1 || 0);
+            const p2 = toScreen(a.datos.x2, a.datos.y2, a.datos.z2 || 0);
+            const tVals = [0, 0.25, 0.5, 0.75, 1];
+            let isHit = false;
+            for (let t of tVals) {
+                const px = p1.x + t * (p2.x - p1.x);
+                const py = p1.y + t * (p2.y - p1.y);
+                if (inside(px, py)) {
+                    isHit = true;
+                    break;
+                }
+            }
+            if (isHit) selected.add(a);
+        } else if (a.tipo === 'nodo' || a.tipo === 'valvula_manual' || a.tipo === 'nota') {
+            const p = toScreen(a.datos.x, a.datos.y, a.datos.z || 0);
+            if (inside(p.x, p.y)) selected.add(a);
+        } else if (a.tipo === 'cota') {
+            const p1 = toScreen(a.datos.x1, a.datos.y1, a.datos.z1 || 0);
+            const p2 = toScreen(a.datos.x2, a.datos.y2, a.datos.z2 || 0);
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            if (inside(midX, midY)) selected.add(a);
+        }
+    }
+    return selected;
 }

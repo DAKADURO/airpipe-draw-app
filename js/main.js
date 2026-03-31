@@ -3,14 +3,14 @@ import { initCanvasEvents } from './canvas_events.js';
 import { setupUI } from './ui.js';
 import { updateAuthUI } from './api.js';
 
+window.onerror = function(msg, url, line) { alert("JS Crash: " + msg + " at line " + line); };
+
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Airpipe DRAW 2.0.1 - ES Module Environment Loaded");
+    try {
+        console.log("Airpipe DRAW 2.0.1 - ES Module Environment Loaded");
 
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
-    const wrapper = document.getElementById('canvas-wrapper');
-    const floatingDimInput = document.getElementById('floating-dim-input');
-    const lengthInput = document.getElementById('lengthInput');
 
     // 1. Check Login Context
     updateAuthUI();
@@ -19,11 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
     initCanvas(canvas, ctx);
 
     // 3. Initialize user button hooks and HTML modal events
-    const { setStatus } = setupUI(canvas);
+    setupUI(canvas);
     
     // 4. Hook up geometric mouse calculations on the canvas zone
-    initCanvasEvents(canvas, wrapper, floatingDimInput, lengthInput, setStatus);
+    initCanvasEvents(canvas);
 
     // 5. Present the canvas to the user
     redraw();
+    } catch (e) {
+        alert("Startup CRASH: " + e.message);
+    }
 });

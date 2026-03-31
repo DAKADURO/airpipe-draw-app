@@ -7,6 +7,16 @@ export const state = {
     puntoMouse: null,    // {x, y} (World Coords)
     cotaInicio: null,    // {x, y} primer punto de la cota
     cotaSiendoEditada: null, // Cota que se está editando actualmente
+    draggingCota: null,      // Cota que se está arrastrando en la pantalla
+
+    // --- Variables de Selección y Mover ---
+    seleccionados: new Set(), // Conjunto de items en el historial que están seleccionados
+    isSelecting: false,       // ¿Estamos dibujando la caja de selección?
+    selectionStart: null,     // {x, y} de la pantalla donde inició el clic de caja
+    selectionBox: null,       // {x, y, w, h} de la pantalla
+    moveAnchor: null,         // Punto base 3D {x, y, z} para el comando Mover
+    movePreview: null,        // Cursor drag 3D {x, y, z} para proyectar los fantasmas
+    // ------------------------------------
 
     viewState: {
         scale: 1.0,

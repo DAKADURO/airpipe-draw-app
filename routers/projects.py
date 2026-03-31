@@ -144,7 +144,7 @@ def export_pdf(project_id):
         project_data = json.loads(project.data)
         print(f"DEBUG PDF: project_data keys: {list(project_data.keys())}")
         
-        from rectificador import procesar_plano
+        from core.rectificador import procesar_plano
         plano_procesado = procesar_plano(project_data)
         
         print(f"DEBUG PDF: plano_procesado lineas count: {len(plano_procesado.get('lineas', []))}")
@@ -153,7 +153,7 @@ def export_pdf(project_id):
         # Usar el BOM que ya calculó procesar_plano internamente
         bom = plano_procesado.get("bom", {})
         
-        from generador_pdf import generar_reporte_pdf
+        from generators.generador_pdf import generar_reporte_pdf
         pdf_content = generar_reporte_pdf(
             proyecto_nombre=project.name,
             cliente=project.client,

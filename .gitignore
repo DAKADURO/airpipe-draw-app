@@ -10,3 +10,10 @@ test_*.py
 .DS_Store
 *.db
 .pytest_cache/
+node_modules/
+dist/
+*.log
+test_out.txt
+tmp.log
+tmp_tail.log
+build_err.txt

@@ -1,654 +1,236 @@
-import { state, invalidateSnapCache, updateCanvasRect } from './state.js';
-import { MAX_CAMERA_OFFSET, MODO, PIXELS_POR_METRO } from './config.js';
-import { toWorld, toScreen, getSnapPoint, getSmartSnap, getAngleSnapPoint, getLineSnap, getCotaAt, findItemAt, projectIso, splitLineAtJunctions } from './math.js';
-import { redraw, scheduleRedraw } from './drawing.js';
+import { state, invalidateSnapCache } from './state.js';
+import { toWorld, toScreen, getLineSnap, getSnapPoint, getAngleSnapPoint, getSmartSnap } from './math.js';
+import { redraw, scheduleRedraw, canvas } from './drawing.js';
+import { MODO, PIXELS_POR_METRO } from './config.js';
+import { ToolManager } from './tools/ToolManager.js';
+// import { setModoGlobal } from './main.js'; // Eliminated, was causing SyntaxError crash
+import { DrawTool } from './tools/DrawTool.js'; // Needed specifically for manual length
 
-export function aplicarNuevaLongitud(cota, nuevoMetros, setStatusCb) {
-    const pixels = nuevoMetros * PIXELS_POR_METRO;
-    const { x1, y1, x2, y2 } = cota.datos;
-
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const lengthActual = Math.hypot(dx, dy);
-    if (lengthActual < 1) return;
-
-    const ux = dx / lengthActual;
-    const uy = dy / lengthActual;
-    const nuevoX2 = x1 + ux * pixels;
-    const nuevoY2 = y1 + uy * pixels;
-
-    const deltaX = nuevoX2 - x2;
-    const deltaY = nuevoY2 - y2;
-
-    if (Math.abs(deltaX) < 0.01 && Math.abs(deltaY) < 0.01) return;
-
-    let lineaEditadaIdx = -1;
-    const cotaEditadaIdx = state.historial.indexOf(cota);
-    for (let i = 0; i < state.historial.length; i++) {
-        const item = state.historial[i];
-        if (item.tipo !== 'linea') continue;
-        const d1 = Math.hypot(item.datos.x1 - x1, item.datos.y1 - y1);
-        const d2 = Math.hypot(item.datos.x2 - x2, item.datos.y2 - y2);
-        if (d1 < 2 && d2 < 2) { lineaEditadaIdx = i; break; }
-        const d1r = Math.hypot(item.datos.x1 - x2, item.datos.y1 - y2);
-        const d2r = Math.hypot(item.datos.x2 - x1, item.datos.y2 - y1);
-        if (d1r < 2 && d2r < 2) { lineaEditadaIdx = i; break; }
+export function getModeCursor(modo) {
+    if (state._spacePressed) return 'grab';
+    switch (modo) {
+        case MODO.PAN:     return 'grab';
+        case MODO.BORRAR:  return 'not-allowed';
+        case MODO.NINGUNO: return 'default';
+        default:           return 'crosshair';
     }
-
-    const ptKey = (px, py) => `${Math.round(px)},${Math.round(py)}`;
-    const puntosAMover = new Set();
-    const cola = [ptKey(x2, y2)];
-    puntosAMover.add(ptKey(x2, y2));
-
-    let head = 0;
-    while (head < cola.length) {
-        const currKey = cola[head++];
-        for (let i = 0; i < state.historial.length; i++) {
-            if (i === lineaEditadaIdx) continue; 
-            const item = state.historial[i];
-            if (item.tipo !== 'linea') continue; 
-
-            const k1 = ptKey(item.datos.x1, item.datos.y1);
-            const k2 = ptKey(item.datos.x2, item.datos.y2);
-
-            if (k1 === currKey && !puntosAMover.has(k2)) {
-                puntosAMover.add(k2);
-                cola.push(k2);
-            }
-            if (k2 === currKey && !puntosAMover.has(k1)) {
-                puntosAMover.add(k1);
-                cola.push(k1);
-            }
-        }
-    }
-
-    for (let i = 0; i < state.historial.length; i++) {
-        if (i === lineaEditadaIdx || i === cotaEditadaIdx) continue;
-        const item = state.historial[i];
-        if (item.tipo === 'linea' || item.tipo === 'cota') {
-            const k1 = ptKey(item.datos.x1, item.datos.y1);
-            if (puntosAMover.has(k1)) {
-                item.datos.x1 += deltaX;
-                item.datos.y1 += deltaY;
-            }
-            const k2 = ptKey(item.datos.x2, item.datos.y2);
-            if (puntosAMover.has(k2)) {
-                item.datos.x2 += deltaX;
-                item.datos.y2 += deltaY;
-            }
-        } else if (item.tipo === 'nodo' || item.tipo === 'valvula_manual') {
-            const k = ptKey(item.datos.x, item.datos.y);
-            if (puntosAMover.has(k)) {
-                item.datos.x += deltaX;
-                item.datos.y += deltaY;
-            }
-        }
-    }
-
-    cota.datos.x2 = nuevoX2;
-    cota.datos.y2 = nuevoY2;
-
-    if (lineaEditadaIdx >= 0) {
-        const lineaEd = state.historial[lineaEditadaIdx];
-        const dA = Math.hypot(lineaEd.datos.x1 - x1, lineaEd.datos.y1 - y1);
-        if (dA < 2) {
-            lineaEd.datos.x2 = nuevoX2;
-            lineaEd.datos.y2 = nuevoY2;
-        } else {
-            lineaEd.datos.x1 = nuevoX2;
-            lineaEd.datos.y1 = nuevoY2;
-        }
-    }
-
-    invalidateSnapCache();
-    if (setStatusCb) setStatusCb(`Longitud: ${nuevoMetros}m — Red actualizada.`);
 }
 
-export function initCanvasEvents(canvas, wrapper, floatingDimInput, lengthInput, setStatusCb) {
+export function initCanvasEvents(c) {
+    let setStatusCb = null;
+    let updateModeCb = null;
+    let inDOMCtx = false;
+
+    try {
+        const { setStatus, updateModeIndicator } = import('./ui/tools.js').then(m => {
+            setStatusCb = m.setStatus;
+            updateModeCb = m.updateModeIndicator;
+        });
+        inDOMCtx = true;
+    } catch { } // Para modo testing offline
 
     function resizeCanvas() {
-        if (!wrapper) return;
-        canvas.width = wrapper.clientWidth;
-        canvas.height = wrapper.clientHeight;
-        updateCanvasRect(canvas);
-        redraw();
+        const container = document.getElementById('canvas-wrapper');
+        if (!container) return;
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        scheduleRedraw();
     }
     window.addEventListener('resize', resizeCanvas);
-    
-    // Configuración Inicial para que tome la zona y resolución reales desde el arranque
     resizeCanvas();
 
-    canvas.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        updateCanvasRect(canvas); // En caso de scroll nativo en OS
-        const mouseX = e.clientX - state.canvasRect.left;
-        const mouseY = e.clientY - state.canvasRect.top;
+    // Snap Points and Info Variables for Renderers
+    const lengthInput = document.getElementById('length-input');
+    
+    function extractMouseEventData(e) {
+        const rect = canvas.getBoundingClientRect();
+        const rawX = e.clientX - rect.left;
+        const rawY = e.clientY - rect.top;
+        const currentZ = state.viewState.isIsometric ? (state.viewState.currentZ || 0) : 0;
+        const worldPos = toWorld(rawX, rawY, currentZ, state);
+        
+        // Synchronize state for math engine (Angle snap relies on this)
+        state.lastMouseX = rawX;
+        state.lastMouseY = rawY;
+        
+        let finalPos = { ...worldPos };
+        
+        // Always calculate snap point for rendering, unless panning
+        if (!state.isPanning && state.modoActual !== MODO.MOVER && state.modoActual !== MODO.BORRAR) {
+            // A. Point / Vertex Snap
+            let snap = getSnapPoint(worldPos.x, worldPos.y, currentZ);
+            
+            // B. Edge / Line Snap
+            if (!snap) {
+                snap = getLineSnap(worldPos.x, worldPos.y, currentZ);
+            }
 
-        const worldBefore = toWorld(mouseX, mouseY);
-        let projX = worldBefore.x;
-        let projY = worldBefore.y;
-        if (state.viewState.isIsometric) {
-            const p = projectIso(worldBefore.x, worldBefore.y, worldBefore.z || 0);
-            projX = p.x;
-            projY = p.y;
-        }
-
-        const zoomIntensity = 0.1;
-        const direction = e.deltaY < 0 ? 1 : -1;
-        let newScale = state.viewState.scale * (1 + direction * zoomIntensity);
-        newScale = Math.min(Math.max(0.02, newScale), 5); // 0.02 permite ver 50m en 1000px
-
-        state.viewState.scale = newScale;
-
-        let nextOffsetX = mouseX - projX * newScale;
-        let nextOffsetY = mouseY - projY * newScale;
-
-        state.viewState.offsetX = Math.min(nextOffsetX, MAX_CAMERA_OFFSET);
-        state.viewState.offsetY = Math.min(nextOffsetY, MAX_CAMERA_OFFSET);
-
-        redraw();
-    }, { passive: false });
-
-    // --- Touch Events (Mobile Support) ---
-    let initialPinchDistance = null;
-    let initialPinchScale = null;
-    let isTouchDragging = false;
-
-    canvas.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 2) {
-            e.preventDefault();
-            initialPinchDistance = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
-            initialPinchScale = state.viewState.scale;
-            state.isPanning = false;
-            isTouchDragging = false;
-        } else if (e.touches.length === 1) {
-            updateCanvasRect(canvas);
-            const forcePan = state.modoActual === MODO.PAN;
-            if (forcePan) {
-                e.preventDefault();
-                state.isPanning = true;
-                state.lastPanX = e.touches[0].clientX;
-                state.lastPanY = e.touches[0].clientY;
+            if (snap) {
+                state.snapPoint = snap;
+                finalPos = { x: snap.x, y: snap.y, z: snap.z };
             } else {
-                isTouchDragging = true;
-            }
-        }
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', (e) => {
-        if (e.touches.length === 2) {
-            e.preventDefault();
-            if (!initialPinchDistance) return;
-            const currentDistance = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
-            
-            const pinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-            const pinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-            const mouseX = pinchCenterX - state.canvasRect.left;
-            const mouseY = pinchCenterY - state.canvasRect.top;
-
-            const worldBefore = toWorld(mouseX, mouseY);
-            let projX = worldBefore.x;
-            let projY = worldBefore.y;
-            if (state.viewState.isIsometric) {
-                const p = projectIso(worldBefore.x, worldBefore.y, worldBefore.z || 0);
-                projX = p.x;
-                projY = p.y;
+                state.snapPoint = null;
             }
 
-            let newScale = initialPinchScale * (currentDistance / initialPinchDistance);
-            newScale = Math.min(Math.max(0.1, newScale), 5);
-            state.viewState.scale = newScale;
-
-            let nextOffsetX = mouseX - projX * newScale;
-            let nextOffsetY = mouseY - projY * newScale;
-
-            state.viewState.offsetX = Math.min(nextOffsetX, MAX_CAMERA_OFFSET);
-            state.viewState.offsetY = Math.min(nextOffsetY, MAX_CAMERA_OFFSET);
-            
-            state.isPanning = false;
-            isTouchDragging = false;
-            scheduleRedraw();
-        } else if (e.touches.length === 1) {
-            const touch = e.touches[0];
-            if (state.isPanning) {
-                e.preventDefault();
-                const deltaX = touch.clientX - state.lastPanX;
-                const deltaY = touch.clientY - state.lastPanY;
-
-                let nextOffsetX = state.viewState.offsetX + deltaX;
-                let nextOffsetY = state.viewState.offsetY + deltaY;
-
-                state.viewState.offsetX = Math.min(nextOffsetX, MAX_CAMERA_OFFSET);
-                state.viewState.offsetY = Math.min(nextOffsetY, MAX_CAMERA_OFFSET);
-
-                state.lastPanX = touch.clientX;
-                state.lastPanY = touch.clientY;
-                scheduleRedraw();
-            } else if (isTouchDragging) {
-                // Simulate mousemove for snaps and previews
-                const mouseEvent = new MouseEvent('mousemove', {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY
-                });
-                canvas.dispatchEvent(mouseEvent);
-            }
-        }
-    }, { passive: false });
-
-    canvas.addEventListener('touchend', (e) => {
-        if (state.isPanning) {
-            state.isPanning = false;
-        } else if (isTouchDragging && e.changedTouches.length === 1) {
-            const touch = e.changedTouches[0];
-            const clickEvent = new MouseEvent('click', {
-                clientX: touch.clientX,
-                clientY: touch.clientY,
-                bubbles: true
-            });
-            canvas.dispatchEvent(clickEvent);
-            isTouchDragging = false;
-        }
-        
-        if (e.touches.length < 2) {
-            initialPinchDistance = null;
-            initialPinchScale = null;
-        }
-    });
-
-    canvas.addEventListener('contextmenu', (e) => {
-        updateCanvasRect(canvas);
-        const rawX = e.clientX - state.canvasRect.left;
-        const rawY = e.clientY - state.canvasRect.top;
-        const worldPos = toWorld(rawX, rawY);
-
-        const hit = getCotaAt(worldPos.x, worldPos.y);
-        if (hit) {
-            e.preventDefault();
-            let currentOff = hit.cota.datos.offset;
-            if (currentOff === undefined) currentOff = 30 / state.viewState.scale;
-            hit.cota.datos.offset = -currentOff;
-
-            invalidateSnapCache();
-            redraw();
-            if (setStatusCb) setStatusCb("Lado de la cota alternado.");
-        }
-    });
-
-    const coordsDisplay = document.getElementById('coords-display');
-
-    canvas.addEventListener('mousedown', (e) => {
-        updateCanvasRect(canvas);
-        // Pan con botón central (1) o botón izquierdo (0) si modo es PAN o espacio pulsado
-        const forcePan = state._spacePressed || state.modoActual === MODO.PAN;
-        if (e.button === 1 || (e.button === 0 && forcePan)) {
-            state.isPanning = true;
-            state.lastPanX = e.clientX;
-            state.lastPanY = e.clientY;
-            canvas.style.cursor = 'grabbing';
-            e.preventDefault();
-        }
-    });
-
-    canvas.addEventListener('mouseup', () => {
-        state.isPanning = false;
-        if (state.modoActual === MODO.PAN || state._spacePressed) {
-            canvas.style.cursor = 'grab';
-        } else {
-            canvas.style.cursor = (state.modoActual === MODO.NINGUNO) ? 'default' : 'crosshair';
-        }
-    });
-
-    canvas.addEventListener('click', (e) => {
-        if (state.isPanning) return;
-        updateCanvasRect(canvas);
-
-        const rawX = e.clientX - state.canvasRect.left;
-        const rawY = e.clientY - state.canvasRect.top;
-
-        const worldPos = toWorld(rawX, rawY);
-        let x = worldPos.x;
-        let y = worldPos.y;
-        let z = worldPos.z;
-        
-        if (state.modoActual === MODO.BORRAR) {
-            const itemToRemove = findItemAt(x, y);
-            if (itemToRemove) {
-                if (itemToRemove.tipo === 'linea') {
-                    // Smart Delete: Dividir la línea por sus uniones
-                    const segments = splitLineAtJunctions(itemToRemove);
-                    
-                    if (segments.length > 1) {
-                        // Encontrar qué segmento borrar basándonos en la cercanía al mouse
-                        let closestSegmentIdx = -1;
-                        let minDist = Infinity;
-                        
-                        segments.forEach((seg, idx) => {
-                            // Proyectar punto sobre segmento para ver distancia
-                            const { x1, y1, x2, y2 } = seg.datos;
-                            const z1 = seg.datos.z1 || 0;
-                            const z2 = seg.datos.z2 || 0;
-                            
-                            // Usar una versión simplificada de la lógica de distancia punto-segmento
-                            const t = ((x - x1)*(x2-x1) + (y - y1)*(y2-y1) + (z - z1)*(z2-z1)) / 
-                                      (Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2) + Math.pow(z2-z1, 2));
-                            const tClamped = Math.max(0, Math.min(1, t));
-                            const px = x1 + tClamped * (x2 - x1);
-                            const py = y1 + tClamped * (y2 - y1);
-                            const pz = z1 + tClamped * (z2 - z1);
-                            
-                            const d = Math.hypot(x - px, y - py, z - pz);
-                            if (d < minDist) {
-                                minDist = d;
-                                closestSegmentIdx = idx;
-                            }
-                        });
-
-                        // Reemplazar la línea original por los segmentos restantes
-                        const index = state.historial.indexOf(itemToRemove);
-                        if (index > -1) {
-                            const remainants = segments.filter((_, idx) => idx !== closestSegmentIdx);
-                            state.historial.splice(index, 1, ...remainants);
-                            if (setStatusCb) setStatusCb("Tramo de tubería eliminado.");
-                        }
-                    } else {
-                        // No hay uniones, borrar línea completa
-                        const index = state.historial.indexOf(itemToRemove);
-                        if (index > -1) state.historial.splice(index, 1);
-                        if (setStatusCb) setStatusCb("Inclinación eliminada.");
+            // C. Angle Snap (If drawing a line)
+            if (state.lineaIniciada && state.puntoInicio) {
+                const angleSnap = getAngleSnapPoint(state.puntoInicio.x, state.puntoInicio.y, worldPos.x, worldPos.y, state.puntoInicio.z || 0);
+                if (angleSnap) {
+                    state.angleSnapPoint = angleSnap;
+                    // Angle snap has lower priority than vertex snap, but overrides the raw pos
+                    if (!state.snapPoint) {
+                        finalPos = { x: angleSnap.x, y: angleSnap.y, z: angleSnap.z };
                     }
                 } else {
-                    // No es una línea (cota, nodo, válvula), borrar normal
-                    const index = state.historial.indexOf(itemToRemove);
-                    if (index > -1) state.historial.splice(index, 1);
-                    if (setStatusCb) setStatusCb("Elemento eliminado.");
+                    state.angleSnapPoint = null;
                 }
-                
-                invalidateSnapCache();
-                redraw();
-                return;
+            } else {
+                state.angleSnapPoint = null;
             }
+
+            // D. Smart Alignment Guides (Only if no other snap)
+            if (!state.snapPoint && !state.angleSnapPoint) {
+                const smart = getSmartSnap(worldPos.x, worldPos.y, state.activeGuides);
+                if (smart) {
+                    finalPos = { x: smart.x, y: smart.y, z: currentZ };
+                }
+            } else if (!state.snapPoint) {
+                // If angle snap but not vertex, we can still show guides for alignment
+                getSmartSnap(finalPos.x, finalPos.y, state.activeGuides);
+            } else {
+                state.activeGuides = [];
+            }
+        } else {
+            state.snapPoint = null;
+            state.angleSnapPoint = null;
+            state.activeGuides = [];
         }
 
-        if (state.snapPoint) {
-            x = state.snapPoint.x;
-            y = state.snapPoint.y;
-            z = state.snapPoint.z;
-        } else if (state.smartSnapPoint) {
-            x = state.smartSnapPoint.x;
-            y = state.smartSnapPoint.y;
-            z = state.smartSnapPoint.z || z;
-          } else if (state.modoActual === MODO.LINEA && state.lineaIniciada && state.angleSnapPoint) {
-            x = state.angleSnapPoint.x;
-            y = state.angleSnapPoint.y;
-            z = state.angleSnapPoint.z || z;
+        // Set system-wide mouse target
+        state.puntoMouse = { ...finalPos };
+        
+        return {
+            rawX, rawY,
+            worldPos,
+            x: finalPos.x,
+            y: finalPos.y,
+            z: finalPos.z,
+            multiSelectModifier: e.ctrlKey || e.metaKey || e.shiftKey
+        };
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (e.button !== 0 && e.button !== 1) return; // Allow left and middle click ONLY
+        
+        if (e.button === 1 || state._spacePressed) {
+            state.isPanning = true;
+            state.lastMouse = { x: e.clientX, y: e.clientY };
+            canvas.style.cursor = 'grabbing';
+            return;
         }
 
-        if (state.modoActual === MODO.LINEA) {
-            if (!state.lineaIniciada) {
-                state.lineaIniciada = true;
-                state.puntoInicio = { x, y, z };
-                if (setStatusCb) setStatusCb('Punto de inicio fijado. Clic para terminar la tubería.');
-            } else {
-                state.historial.push({
-                    tipo: 'linea',
-                    datos: { 
-                        x1: state.puntoInicio.x, y1: state.puntoInicio.y, z1: state.puntoInicio.z,
-                        x2: x, y2: y, z2: z 
-                    },
-                });
-                invalidateSnapCache();
-                state.lineaIniciada = false;
-                state.puntoInicio = null;
-                if (setStatusCb) setStatusCb(`Tubería añadida. (${state.historial.filter(a => a.tipo === 'linea').length} en total)`);
-                redraw();
-            }
-        } else if (state.modoActual === MODO.COMPRESOR) {
-            state.historial.push({ tipo: 'nodo', datos: { tipo: 'compresor', x, y, z } });
-            invalidateSnapCache();
-            if (setStatusCb) setStatusCb(`Compresor colocado en altura ${z}m.`);
-            redraw();
-        } else if (state.modoActual === MODO.CONSUMO) {
-            state.historial.push({ tipo: 'nodo', datos: { tipo: 'consumo', x, y, z } });
-            invalidateSnapCache();
-            if (setStatusCb) setStatusCb(`Punto de Consumo colocado en altura ${z}m.`);
-            redraw();
-        } else if (state.modoActual === MODO.VALVULA) {
-            const snap = getLineSnap(x, y, z);
-            if (snap) {
-                state.historial.push({
-                    tipo: 'valvula_manual',
-                    datos: {
-                        x: snap.x, y: snap.y, z: snap.z, angulo: snap.angulo, diametro: snap.linea.diametro || null
-                    },
-                });
-                if (setStatusCb) setStatusCb('Válvula colocada sobre la tubería.');
-                redraw();
-            } else {
-                if (setStatusCb) setStatusCb('Debes hacer clic SOBRE una tubería para colocar la válvula.');
-            }
-        } else if (state.modoActual === MODO.ACOTAR) {
-            if (!state.cotaInicio) {
-                state.cotaInicio = { x, y, z };
-                if (setStatusCb) setStatusCb('Primer punto fijado. Clic en el segundo punto para completar la cota.');
-            } else {
-                const dist = Math.hypot(x - state.cotaInicio.x, y - state.cotaInicio.y, z - state.cotaInicio.z);
-                if (dist > 5) {
-                    state.historial.push({
-                        tipo: 'cota',
-                        datos: {
-                            x1: state.cotaInicio.x, y1: state.cotaInicio.y, z1: state.cotaInicio.z,
-                            x2: x, y2: y, z2: z,
-                            offset: 30 / state.viewState.scale
-                        }
-                    });
-                    if (setStatusCb) setStatusCb('Cota añadida.');
-                    redraw();
-                }
-                state.cotaInicio = null;
-            }
-        } else if (state.modoActual === MODO.NOTA) {
-            const texto = prompt("Ingresa el texto de la nota:");
-            if (texto && texto.trim().length > 0) {
-                state.historial.push({
-                    tipo: 'nota',
-                    datos: { x, y, z, texto: texto.trim() }
-                });
-                if (setStatusCb) setStatusCb('Nota añadida.');
-                redraw();
-            }
+        if (state.modoActual === MODO.PAN) {
+            state.isPanning = true;
+            state.lastMouse = { x: e.clientX, y: e.clientY };
+            canvas.style.cursor = 'grabbing';
+            return;
         }
+
+        const data = extractMouseEventData(e);
+        ToolManager.handleEvent('onMouseDown', e, data);
     });
 
     canvas.addEventListener('mousemove', (e) => {
         if (state.isPanning) {
-            const deltaX = e.clientX - state.lastPanX;
-            const deltaY = e.clientY - state.lastPanY;
-
-            let nextOffsetX = state.viewState.offsetX + deltaX;
-            let nextOffsetY = state.viewState.offsetY + deltaY;
-
-            state.viewState.offsetX = Math.min(nextOffsetX, MAX_CAMERA_OFFSET);
-            state.viewState.offsetY = Math.min(nextOffsetY, MAX_CAMERA_OFFSET);
-
-            state.lastPanX = e.clientX;
-            state.lastPanY = e.clientY;
-            scheduleRedraw(); 
+            const dx = e.clientX - state.lastMouse.x;
+            const dy = e.clientY - state.lastMouse.y;
+            state.viewState.offsetX += dx;
+            state.viewState.offsetY += dy;
+            state.lastMouse = { x: e.clientX, y: e.clientY };
+            scheduleRedraw();
             return;
         }
 
-        updateCanvasRect(canvas);
-        const rawX = e.clientX - state.canvasRect.left;
-        const rawY = e.clientY - state.canvasRect.top;
+        const data = extractMouseEventData(e);
+        ToolManager.handleEvent('onMouseMove', e, data);
         
-        // El punto de referencia Z del ratón debe ser el mismo que el punto de inicio si estamos dibujando,
-        // esto permite dibujar tuberías horizontales a la misma altura sin esfuerzo.
-        let refZ = state.viewState.currentZ || 0;
+        // Special case global angle calculation for UI display
         if (state.modoActual === MODO.LINEA && state.lineaIniciada && state.puntoInicio) {
-            refZ = state.puntoInicio.z || 0;
+            const dx = data.x - state.puntoInicio.x;
+            const dy = data.y - state.puntoInicio.y;
+            const isVertical = !state.viewState.isIsometric && Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs((data.z||0) - (state.puntoInicio.z||0)) > 1;
+            let angulo = Math.atan2(dy, dx) * (180 / Math.PI);
+            if (angulo < 0) angulo += 360;
+            state.angleSnapPoint = { x: data.x, y: data.y, angle: angulo, isVertical, z: data.z };
+        } else {
+            state.angleSnapPoint = null;
         }
         
-        const worldPos = toWorld(rawX, rawY, refZ);
-        const worldX = worldPos.x;
-        const worldY = worldPos.y;
-        const worldZ = worldPos.z;
-
-        state.lastMouseX = rawX;
-        state.lastMouseY = rawY;
-
-        if (coordsDisplay) {
-            coordsDisplay.textContent = `X: ${worldX.toFixed(2)}, Y: ${worldY.toFixed(2)}, Z: ${worldZ.toFixed(2)}`;
-        }
-
-        state.snapPoint = getSnapPoint(worldX, worldY, worldZ);
-
-        state.smartSnapPoint = null;
-        if (!state.snapPoint) {
-            state.activeGuides = []; 
-            state.smartSnapPoint = getSmartSnap(worldX, worldY, state.activeGuides);
-            if (state.smartSnapPoint) state.smartSnapPoint.z = worldZ;
-        } else {
-            state.activeGuides = [];
-        }
-
-        state.angleSnapPoint = null;
-        if (state.modoActual === MODO.LINEA && state.lineaIniciada && state.puntoInicio) {
-            const z1 = state.puntoInicio.z || 0;
-            state.angleSnapPoint = getAngleSnapPoint(state.puntoInicio.x, state.puntoInicio.y, worldX, worldY, z1);
-            
-            // IMPORTANTE: Para verticales, el Z ya viene calculado en el snap. No sobreescribir con worldZ.
-            if (state.angleSnapPoint) {
-                if (!state.angleSnapPoint.isVertical) {
-                    state.angleSnapPoint.z = worldZ;
-                }
-                // Añadir una guía visual para el snap de ángulo
-                state.activeGuides.push({
-                    x1: state.puntoInicio.x, y1: state.puntoInicio.y, z1: state.puntoInicio.z,
-                    x2: state.angleSnapPoint.x, y2: state.angleSnapPoint.y, z2: state.angleSnapPoint.z
-                });
-            }
-        }
-
-        if (state.snapPoint) {
-            state.puntoMouse = { x: state.snapPoint.x, y: state.snapPoint.y, z: state.snapPoint.z };
-        } else if (state.angleSnapPoint && state.angleSnapPoint.isVertical) {
-            // Prioridad máxima a la verticalidad (Z) para evitar líneas torcidas
-            state.puntoMouse = { x: state.angleSnapPoint.x, y: state.angleSnapPoint.y, z: state.angleSnapPoint.z };
-        } else if (state.smartSnapPoint) {
-            state.puntoMouse = { x: state.smartSnapPoint.x, y: state.smartSnapPoint.y, z: state.smartSnapPoint.z };
-        } else if (state.angleSnapPoint) {
-            state.puntoMouse = { x: state.angleSnapPoint.x, y: state.angleSnapPoint.y, z: state.angleSnapPoint.z };
-        } else if (state.modoActual === MODO.VALVULA) {
-            const snap = getLineSnap(worldX, worldY, worldZ);
-            if (snap) {
-                state.puntoMouse = { x: snap.x, y: snap.y, z: snap.z, angulo: snap.angulo };
-            } else {
-                state.puntoMouse = { x: worldX, y: worldY, z: worldZ };
-            }
-        } else {
-            state.puntoMouse = { x: worldX, y: worldY, z: worldZ };
-        }
-
         scheduleRedraw();
     });
 
-    canvas.addEventListener('mouseleave', () => {
-        state.puntoMouse = null;
-        state.snapPoint = null;
-        state.angleSnapPoint = null;
-        state.smartSnapPoint = null;
-        state.activeGuides = [];
-        scheduleRedraw();
-    });
-
-    function finalizarEdicionCota(guardar) {
-        if (!state.cotaSiendoEditada) return;
-
-        if (guardar) {
-            const nuevoMetros = parseFloat(floatingDimInput.value);
-            if (!isNaN(nuevoMetros) && nuevoMetros > 0) {
-                aplicarNuevaLongitud(state.cotaSiendoEditada, nuevoMetros, setStatusCb);
-            }
+    window.addEventListener('mouseup', (e) => {
+        if (state.isPanning) {
+            state.isPanning = false;
+            canvas.style.cursor = getModeCursor(state.modoActual);
+            return;
         }
-        state.cotaSiendoEditada = null;
-        floatingDimInput.style.display = 'none';
-        redraw();
-    }
 
-    floatingDimInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') finalizarEdicionCota(true);
-        else if (e.key === 'Escape') finalizarEdicionCota(false);
-    });
-
-    floatingDimInput.addEventListener('blur', () => {
-        finalizarEdicionCota(false);
-    });
-
-    function confirmarLongitudManual(distancia) {
-        if (!state.puntoInicio || !state.puntoMouse) return;
-
-        const x1 = state.puntoInicio.x;
-        const y1 = state.puntoInicio.y;
-        const z1 = state.puntoInicio.z || 0;
+        if (state.isSelecting) {
+            state.isSelecting = false;
+            // No return here, let tool handle end of selection if needed
+        }
         
-        const x2 = state.puntoMouse.x;
-        const y2 = state.puntoMouse.y;
-        const z2 = state.puntoMouse.z || 0;
+        const data = extractMouseEventData(e);
+        ToolManager.handleEvent('onMouseUp', e, data);
+    });
 
-        let dx = x2 - x1;
-        let dy = y2 - y1;
-        let dz = z2 - z1;
+    canvas.addEventListener('click', (e) => {
+        if (state.isPanning) return; // Prevent spurious clicks while panning
+        
+        const data = extractMouseEventData(e);
+        ToolManager.handleEvent('onClick', e, data);
+    });
 
-        const currentDist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
 
-        if (currentDist < 0.01) { 
-            // Dirección por defecto (X+) si no hay movimiento
-            dx = 1; dy = 0; dz = 0;
-        } else { 
-            dx /= currentDist; 
-            dy /= currentDist;
-            dz /= currentDist;
-        }
+        const zoomSpeed = 0.1;
+        const direction = e.deltaY > 0 ? -1 : 1;
+        
+        // Clamp scale multiplier
+        const zoomFactor = 1 + direction * zoomSpeed;
+        let newScale = state.viewState.scale * zoomFactor;
+        newScale = Math.max(0.1, Math.min(newScale, 10.0));
+        
+        const realZoomFactor = newScale / state.viewState.scale;
 
-        const pxDistancia = distancia * PIXELS_POR_METRO;
-        const finalX = x1 + dx * pxDistancia;
-        const finalY = y1 + dy * pxDistancia;
-        const finalZ = z1 + dz * pxDistancia;
+        state.viewState.offsetX = mouseX - (mouseX - state.viewState.offsetX) * realZoomFactor;
+        state.viewState.offsetY = mouseY - (mouseY - state.viewState.offsetY) * realZoomFactor;
+        state.viewState.scale = newScale;
 
-        state.historial.push({ 
-            tipo: 'linea', 
-            datos: { 
-                x1, y1, z1, 
-                x2: finalX, y2: finalY, z2: finalZ 
-            } 
+        scheduleRedraw();
+    }, { passive: false });
+
+    if (lengthInput) {
+        lengthInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const val = parseFloat(lengthInput.value);
+                if (!isNaN(val) && val > 0) DrawTool.confirmarLongitudManual(val);
+                lengthInput.value = '';
+                lengthInput.style.display = 'none';
+                canvas.focus();
+            } else if (e.key === 'Escape') {
+                lengthInput.value = '';
+                lengthInput.style.display = 'none';
+                canvas.focus();
+                e.stopPropagation();
+            }
         });
-        
-        invalidateSnapCache(); 
-        state.lineaIniciada = false;
-        state.puntoInicio = null;
-        if (setStatusCb) setStatusCb(`Tubería de ${distancia}m añadida.`);
-        redraw();
     }
-
-    lengthInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const val = parseFloat(lengthInput.value);
-            if (!isNaN(val) && val > 0) confirmarLongitudManual(val);
-            lengthInput.value = '';
-            lengthInput.style.display = 'none';
-            canvas.focus();
-        } else if (e.key === 'Escape') {
-            lengthInput.value = '';
-            lengthInput.style.display = 'none';
-            canvas.focus();
-            e.stopPropagation();
-        }
-    });
 
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && !state._spacePressed) {
@@ -663,16 +245,7 @@ export function initCanvasEvents(canvas, wrapper, floatingDimInput, lengthInput,
 
         if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
             e.preventDefault();
-            if (state.historial.length === 0) {
-                if (setStatusCb) setStatusCb('No hay acciones para deshacer.');
-                return;
-            }
-            state.historial.pop();
-            invalidateSnapCache();
-            state.lineaIniciada = false;
-            state.puntoInicio = null;
-            redraw();
-            if (setStatusCb) setStatusCb(`Acción deshecha. (${state.historial.length} elementos restan)`);
+            document.getElementById('btn-undo')?.click();
             return;
         }
 
@@ -681,44 +254,38 @@ export function initCanvasEvents(canvas, wrapper, floatingDimInput, lengthInput,
                 state.lineaIniciada = false;
                 state.puntoInicio = null;
                 if (setStatusCb) setStatusCb('Tubería cancelada. Clic para iniciar una nueva.');
-                redraw();
+                scheduleRedraw();
             }
             return;
         }
 
+        const isDigitKey = /^[0-9]$/.test(e.key);
+        const isNumpadDigit = /^Numpad[0-9]$/.test(e.code);
+        
         if (state.modoActual === MODO.LINEA && state.lineaIniciada && state.puntoInicio &&
-            !e.ctrlKey && !e.altKey && !e.metaKey && /^[0-9]$/.test(e.key) && state.puntoMouse) {
+            !e.ctrlKey && !e.altKey && !e.metaKey && (isDigitKey || isNumpadDigit) && state.puntoMouse) {
             
-            const screenPos = toScreen(state.puntoMouse.x, state.puntoMouse.y);
-            lengthInput.style.display = 'block';
-            lengthInput.style.left = (screenPos.x + 20) + 'px';
-            lengthInput.style.top = (screenPos.y + 20) + 'px';
-            lengthInput.value = e.key;
-            lengthInput.focus();
+            let numValue = isDigitKey ? e.key : e.code.replace('Numpad', '');
+            const zPos = state.puntoMouse.z !== undefined ? state.puntoMouse.z : 0;
+            const screenPos = toScreen(state.puntoMouse.x, state.puntoMouse.y, zPos);
+            
+            if (lengthInput) {
+                lengthInput.style.display = 'block';
+                lengthInput.style.left = (screenPos.x + 20) + 'px';
+                lengthInput.style.top = (screenPos.y + 20) + 'px';
+                lengthInput.value = numValue;
+                lengthInput.focus();
+            }
             e.preventDefault();
-        }
-
-        if (e.key === 'c' || e.key === 'C') {
-            if (document.activeElement.tagName !== 'INPUT') {
-                const btnCenter = document.getElementById('btn-center');
-                if (btnCenter) btnCenter.click();
-            }
-        }
-        if (e.key === 'n' || e.key === 'N') {
-            if (document.activeElement.tagName !== 'INPUT') {
-                const btnNota = document.getElementById('btn-nota');
-                if (btnNota) btnNota.click();
-            }
         }
     });
 
     document.addEventListener('keyup', (e) => {
         if (e.code === 'Space') {
             state._spacePressed = false;
-            canvas.style.cursor = (state.modoActual === MODO.PAN) ? 'grab' : 
-                                 (state.modoActual === MODO.NINGUNO ? 'default' : 'crosshair');
+            canvas.style.cursor = getModeCursor(state.modoActual);
         }
     });
 
-    return { resizeCanvas }; // Expose to orchestrator if needed
+    return { resizeCanvas };
 }

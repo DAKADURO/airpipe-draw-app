@@ -23,6 +23,10 @@
             color: #d4d4d4;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
+        
+        .hidden {
+            display: none !important;
+        }
 
         #app {
             display: flex;
@@ -861,6 +865,7 @@
             <div class="ribbon-brand">
                 <h1>AIRpipe</h1>
                 <p>v3.0.1</p>
+                <div id="project-name-display" style="font-size: 11px; color: #4fc3f7; margin-top: 4px; font-weight: 500;"></div>
             </div>
 
             <div class="ribbon-group">
@@ -887,13 +892,25 @@
 
             <div class="ribbon-group">
                 <div class="ribbon-tools">
+                    <button class="tool-btn active" id="btn-cursor" title="Seleccionar (Esc)">
+                        ↖
+                        Seleccionar
+                    </button>
                     <button class="tool-btn" id="btn-acotar" title="Acotar (D)">
                         📏
                         Acotar
                     </button>
+                    <button class="tool-btn" id="btn-desfase" title="Desfase Paralelo">
+                        ⫽
+                        Paralela
+                    </button>
                     <button class="tool-btn" id="btn-nota" title="Nota (N)">
                         📝
                         Nota
+                    </button>
+                    <button class="tool-btn" id="btn-mover" title="Mover (M)">
+                        ✥
+                        Mover
                     </button>
                     <button class="tool-btn" id="btn-borrar" title="Borrar (Del)">
                         🗑
@@ -917,7 +934,7 @@
                         🎯
                         Centrar
                     </button>
-                    <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #bcbcbc;">
+                    <div id="z-control" style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #bcbcbc;">
                         <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
                             <input type="checkbox" id="check-isometric"> 📐 3D
                         </label>
@@ -950,7 +967,23 @@
                             <option value="lineal">Lineal</option>
                             <option value="anillo">Anillo</option>
                         </select>
-                        <input type="number" id="input-caudal" step="10" value="0" placeholder="CFM" style="width: 55px; background: #3c3c3c; border: 1px solid #555; color: white; font-size: 9px; border-radius: 3px; padding: 2px;">
+                        <div style="display: flex; gap: 2px;">
+                            <input type="number" id="input-caudal" step="10" value="0" placeholder="CFM" style="width: 40px; background: #3c3c3c; border: 1px solid #555; color: white; font-size: 9px; border-radius: 3px; padding: 2px;">
+                            <select id="select-diametro-manual" style="width: 50px; background: #1e1e1e; color: #4fc3f7; border: 1px solid #4fc3f7; border-radius: 3px; font-size: 9px; padding: 2px; font-weight: bold;">
+                                <option value="">Ø Auto</option>
+                                <option value='3/4"'>3/4"</option>
+                                <option value='1"'>1"</option>
+                                <option value='1 1/2"'>1 1/2"</option>
+                                <option value='2"'>2"</option>
+                                <option value='2 1/2"'>2 1/2"</option>
+                                <option value='3"'>3"</option>
+                                <option value='4"'>4"</option>
+                                <option value='6"'>6"</option>
+                                <option value='8"'>8"</option>
+                                <option value='10"'>10"</option>
+                            </select>
+                            <button id="btn-aplicar-diametro" title="Aplicar Diámetro a selección" style="background: #4fc3f7; color: #121212; border: none; border-radius: 3px; font-size: 9px; padding: 2px 4px; cursor: pointer; font-weight: bold;">OK</button>
+                        </div>
                     </div>
                 </div>
                 <div class="ribbon-group-label">Proyecto</div>
@@ -966,7 +999,7 @@
         <!-- Canvas area -->
         <div id="canvas-wrapper">
             <canvas id="mainCanvas"></canvas>
-            <input type="text" id="lengthInput" style="position: absolute; display: none; z-index: 100; font-size: 14px; width: 60px; text-align: center; border: 1px solid #1A4A8A; background: #0F3460; color: white; border-radius: 4px; padding: 4px;" />
+            <input type="text" id="length-input" style="position: absolute; display: none; z-index: 100; font-size: 14px; width: 60px; text-align: center; border: 1px solid #1A4A8A; background: #0F3460; color: white; border-radius: 4px; padding: 4px;" />
             <input type="text" id="floating-dim-input" style="position: absolute; display: none; z-index: 100; font-size: 14px; width: 60px; text-align: center; border: 1px dashed #FF9800; background: #0F3460; color: #FF9800; border-radius: 4px; padding: 4px;" />
             <div id="mode-indicator" class="hidden">Modo: —</div>
 
@@ -1068,7 +1101,7 @@
                 <div id="login-view">
                     <h2>Bienvenido a DRAW v3.0.1</h2>
                     <p>Inicia sesión para gestionar tus proyectos en la nube.</p>
-                    <form class="auth-form" id="login-form">
+                    <form class="auth-form" id="login-form" onsubmit="event.preventDefault();">
                         <input type="email" class="auth-input" id="login-email" placeholder="Email" required />
                         <input type="password" class="auth-input" id="login-password" placeholder="Contraseña"
                             required />
@@ -1082,7 +1115,7 @@
                 <div id="register-view" style="display: none;">
                     <h2>Crear Cuenta</h2>
                     <p>Regístrate para empezar a guardar tus planos.</p>
-                    <form class="auth-form" id="register-form">
+                    <form class="auth-form" id="register-form" onsubmit="event.preventDefault();">
                         <input type="email" class="auth-input" id="register-email" placeholder="Email" required />
                         <input type="password" class="auth-input" id="register-password" placeholder="Contraseña"
                             required />
@@ -1106,7 +1139,7 @@
     </div>
 
     <input type="file" id="bg-input" accept="image/png, image/jpeg, image/webp, .dxf" style="display: none;" />
-    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/main.js?v=8"></script>
 </body>
 
 </html>
