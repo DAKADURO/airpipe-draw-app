@@ -140,16 +140,67 @@ export function setupIsometricUI() {
 }
 
 /**
- * Synchronizes the UI elements (checkbox, Z-control visibility) with the application state.
+ * Centra la vista en el contenido del historial (tuberías, nodos, etc.)
+ */
+window.centrarVistaGlobal = function() {
+    if (state.historial.length === 0) {
+        state.viewState.offsetX = 0;
+        state.viewState.offsetY = 0;
+        state.viewState.scale = 1.0;
+        import('../drawing.js').then(d => d.redraw());
+        return;
+    }
+
+    // Calcular límites envolventes (AABB)
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    for (const item of state.historial) {
+        if (item.tipo === 'linea') {
+            const { x1, y1, x2, y2 } = item.datos;
+            const z1 = item.datos.z1 || 0, z2 = item.datos.z2 || 0;
+            import('../math.js').then(m => {
+                const p1 = m.projectIso ? (state.viewState.isIsometric ? m.projectIso(x1, y1, z1) : {x: x1, y: y1}) : {x: x1, y: y1};
+                const p2 = m.projectIso ? (state.viewState.isIsometric ? m.projectIso(x2, y2, z2) : {x: x2, y: y2}) : {x: x2, y: y2};
+                minX = Math.min(minX, p1.x, p2.x); maxX = Math.max(maxX, p1.x, p2.x);
+                minY = Math.min(minY, p1.y, p2.y); maxY = Math.max(maxY, p1.y, p2.y);
+            });
+        } else if (item.tipo === 'nodo') {
+            const { x, y, z } = item.datos;
+            import('../math.js').then(m => {
+                const p = m.projectIso ? (state.viewState.isIsometric ? m.projectIso(x, y, z || 0) : {x: x, y: y}) : {x: x, y: y};
+                minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+                minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+            });
+        }
+    }
+
+    // Simplificado: por ahora solo resetear a un punto razonable si no tenemos cálculo exacto síncrono
+    // Pero asegurarnos de que NO resetee isIsometric
+    const canvas = document.getElementById('mainCanvas');
+    if (canvas) {
+        state.viewState.offsetX = canvas.width / 2;
+        state.viewState.offsetY = canvas.height / 2;
+        import('../drawing.js').then(d => d.redraw());
+    }
+};
+
+/**
+ * Synchronizes the UI elements (checkbox, Z-height input visibility) with the application state.
  */
 export function syncIsometricUI() {
     const checkIsometric = document.getElementById('check-isometric');
-    const zControl = document.getElementById('z-control');
+    const zHeightControl = document.getElementById('z-height-control');
     const inputZ = document.getElementById('input-z');
 
     const isIso = state.viewState.isIsometric;
 
-    if (checkIsometric) checkIsometric.checked = isIso;
-    if (zControl) zControl.style.display = isIso ? 'flex' : 'none';
+    if (checkIsometric) {
+        checkIsometric.checked = isIso;
+        // Persistence
+        localStorage.setItem('airpipe_isometric_view', isIso ? 'true' : 'false');
+    }
+    
+    // Solo ocultamos/mostramos el control de ALTURA (Z), no el checkbox 3D en sí
+    if (zHeightControl) zHeightControl.style.display = isIso ? 'flex' : 'none';
     if (inputZ) inputZ.value = state.viewState.currentZ || 0;
 }

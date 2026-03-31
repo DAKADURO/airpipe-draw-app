@@ -22,7 +22,7 @@ export const state = {
         scale: 1.0,
         offsetX: 0,
         offsetY: 0,
-        isIsometric: false, // Modo isométrico activo
+        isIsometric: localStorage.getItem('airpipe_isometric_view') === 'true', // Modo isométrico persistente
         currentZ: 0         // Nivel de altura actual para dibujos nuevos
     },
 
