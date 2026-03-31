@@ -94,8 +94,9 @@ export function initCanvasEvents(c) {
                     ? { x: finalPos.x, y: finalPos.y }
                     : { x: worldPos.x, y: worldPos.y };
                 const smart = getSmartSnap(smartPos.x, smartPos.y, state.activeGuides);
-                // Only override position if no other snap is active
-                if (smart && !state.snapPoint && !state.angleSnapPoint) {
+                // Allow smart snap to override position even if angle snap is active (to find intersections)
+                // but vertex snap (!state.snapPoint) always has priority.
+                if (smart && !state.snapPoint) {
                     finalPos = { x: smart.x, y: smart.y, z: currentZ };
                 }
             }
