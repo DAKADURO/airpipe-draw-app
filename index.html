@@ -37,13 +37,14 @@
 
         /* ── Ribbon (Top Bar) ── */
         #ribbon {
-            height: 90px;
-            background: linear-gradient(180deg, #333333 0%, #2d2d2d 100%);
-            border-bottom: 2px solid #007acc;
+            height: 80px;
+            background: linear-gradient(180deg, #2a2a2e 0%, #222226 100%);
+            border-bottom: 1px solid #007acc;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.03);
             display: flex;
             align-items: center;
-            padding: 0 12px;
-            gap: 16px;
+            padding: 0 10px;
+            gap: 6px;
             flex-shrink: 0;
             z-index: 1000;
         }
@@ -53,32 +54,38 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 0 12px;
-            border-right: 1px solid #3c3c3c;
-            height: 80%;
+            padding: 0 14px;
+            border-right: 1px solid rgba(255,255,255,0.06);
+            height: 70%;
+            min-width: 70px;
         }
         .ribbon-brand h1 {
-            font-size: 16px;
-            font-weight: 700;
-            color: #007acc;
-            letter-spacing: 1px;
+            font-size: 17px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #00b4d8, #007acc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1.5px;
             line-height: 1;
         }
         .ribbon-brand p {
-            font-size: 8px;
+            font-size: 7px;
             text-transform: uppercase;
-            color: #666;
-            letter-spacing: 1.5px;
+            color: #555;
+            letter-spacing: 2px;
+            margin-top: 2px;
         }
 
         .ribbon-group {
             display: flex;
             flex-direction: column;
             align-items: center;
-            height: 80%;
-            border-right: 1px solid #3c3c3c;
-            padding-right: 15px;
+            height: 72px;
+            border-right: 1px solid rgba(255,255,255,0.05);
+            padding: 4px 10px 2px 6px;
             justify-content: space-between;
+            position: relative;
         }
 
         .ribbon-group:last-child {
@@ -86,15 +93,16 @@
         }
 
         .ribbon-group-label {
-            font-size: 10px;
+            font-size: 8px;
             text-transform: uppercase;
-            color: #888;
-            letter-spacing: 0.5px;
+            color: #555;
+            letter-spacing: 1.2px;
+            font-weight: 600;
         }
 
         .ribbon-tools {
             display: flex;
-            gap: 8px;
+            gap: 2px;
             align-items: center;
         }
 
@@ -113,15 +121,15 @@
 
         /* ── Command Bar (Bottom) ── */
         #command-bar {
-            height: 32px;
-            background: #252526;
-            border-top: 1px solid #3c3c3c;
+            height: 28px;
+            background: #1e1e1e;
+            border-top: 1px solid #333;
             display: flex;
             align-items: center;
             padding: 0 15px;
-            font-family: 'Consolas', monospace;
-            font-size: 12px;
-            color: #bcbcbc;
+            font-family: 'Consolas', 'SF Mono', monospace;
+            font-size: 11px;
+            color: #888;
             flex-shrink: 0;
             justify-content: space-between;
         }
@@ -133,13 +141,14 @@
         }
 
         .command-prompt {
-            color: #569cd6;
+            color: #007acc;
             font-weight: bold;
+            font-size: 10px;
         }
 
         #coords-display {
-            font-size: 11px;
-            color: #888;
+            font-size: 10px;
+            color: #555;
         }
 
         /* ── Tool buttons ── */
@@ -148,23 +157,26 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 4px;
-            min-width: 54px;
-            height: 60px;
-            padding: 6px 8px;
+            gap: 3px;
+            min-width: 48px;
+            height: 54px;
+            padding: 5px 6px;
             border: 1px solid transparent;
-            border-radius: 4px;
+            border-radius: 6px;
             background: transparent;
-            color: #bcbcbc;
-            font-size: 10px;
+            color: #888;
+            font-size: 9px;
+            font-weight: 500;
             cursor: pointer;
-            transition: background 0.12s, border-color 0.12s, color 0.12s;
+            transition: all 0.15s ease;
             user-select: none;
+            letter-spacing: 0.2px;
+            position: relative;
         }
 
         .tool-btn .icon {
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
             border-radius: 4px;
             flex-shrink: 0;
             display: flex;
@@ -173,46 +185,60 @@
         }
 
         .tool-btn:hover {
-            background: #3e3e42;
-            border-color: #505054;
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(255,255,255,0.08);
             color: #e0e0e0;
+            transform: translateY(-1px);
         }
 
         .tool-btn.active {
-            background: #264f78;
-            color: #ffffff;
-            border-color: #007acc;
+            background: rgba(0, 122, 204, 0.15);
+            color: #4fc3f7;
+            border-color: rgba(0, 122, 204, 0.4);
+            box-shadow: 0 0 12px rgba(0, 122, 204, 0.15), inset 0 0 12px rgba(0, 122, 204, 0.05);
+        }
+
+        .tool-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 25%;
+            width: 50%;
+            height: 2px;
+            background: #007acc;
+            border-radius: 1px;
         }
 
         .icon-compresor {
-            background: #555;
-            border: 2px solid #999;
+            background: rgba(100,100,100,0.3);
+            border: 1.5px solid #777;
             border-radius: 4px;
         }
 
         .icon-consumo {
-            background: #c62828;
-            border: 2px solid #ef5350;
+            background: rgba(198, 40, 40, 0.3);
+            border: 1.5px solid #ef5350;
             border-radius: 50%;
         }
 
         .icon-valvula {
-            background: #00838f;
-            border: 2px solid #4dd0e1;
+            background: rgba(0, 131, 143, 0.3);
+            border: 1.5px solid #4dd0e1;
             border-radius: 2px;
             clip-path: polygon(0% 0%, 100% 100%, 100% 0%, 0% 100%);
         }
 
         .icon-line {
-            width: 22px;
-            height: 3px;
+            width: 20px;
+            height: 2px;
             background: linear-gradient(90deg, #007acc, #00bcd4);
             border-radius: 2px;
             transform: rotate(-30deg);
+            box-shadow: 0 0 6px rgba(0, 188, 212, 0.3);
         }
 
         .icon-pan {
-            font-size: 20px;
+            font-size: 18px;
             line-height: 1;
         }
         .icon-pan::after {
@@ -283,41 +309,42 @@
         .action-btn {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border: 1px solid #3c3c3c;
-            border-radius: 4px;
-            background: #2d2d2d;
-            color: #bcbcbc;
-            font-size: 11px;
+            gap: 5px;
+            padding: 5px 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.04);
+            color: #999;
+            font-size: 10px;
             font-weight: 500;
             cursor: pointer;
-            transition: background 0.12s, border-color 0.12s, color 0.12s;
+            transition: all 0.15s ease;
             white-space: nowrap;
         }
 
         .action-btn:hover {
-            background: #3e3e42;
-            border-color: #007acc;
+            background: rgba(0, 122, 204, 0.12);
+            border-color: rgba(0, 122, 204, 0.3);
             color: #e0e0e0;
         }
 
         .action-btn.primary {
-            background: #264f78;
-            border-color: #007acc;
-            color: #FFFFFF;
+            background: rgba(0, 122, 204, 0.2);
+            border-color: rgba(0, 122, 204, 0.4);
+            color: #4fc3f7;
             font-weight: 600;
         }
 
         .action-btn.primary:hover {
-            background: #007acc;
+            background: rgba(0, 122, 204, 0.35);
+            box-shadow: 0 0 12px rgba(0, 122, 204, 0.15);
         }
 
         .kbd {
             margin-left: 4px;
-            font-size: 9px;
-            background: #3c3c3c;
-            color: #aaa;
+            font-size: 8px;
+            background: rgba(255,255,255,0.06);
+            color: #666;
             padding: 1px 4px;
             border-radius: 3px;
         }
@@ -804,22 +831,25 @@
         @media (max-width: 768px) {
             #ribbon {
                 overflow-x: auto;
-                padding-bottom: 5px;
+                padding-bottom: 4px;
                 -webkit-overflow-scrolling: touch;
+                height: 70px;
             }
             .ribbon-brand {
-                min-width: 80px;
+                min-width: 60px;
             }
             .ribbon-group {
                 min-width: max-content;
             }
             .tool-btn {
-                padding: 6px;
-                min-width: 45px;
+                padding: 4px;
+                min-width: 40px;
+                height: 48px;
+                font-size: 8px;
             }
             .tool-btn span.icon {
-                font-size: 16px;
-                margin-bottom: 3px;
+                font-size: 14px;
+                margin-bottom: 2px;
             }
             
             .modal-content, .svg-modal-content, .bom-modal-content {
@@ -989,10 +1019,10 @@
                 <div class="ribbon-group-label">Proyecto</div>
             </div>
 
-            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px; padding-right: 10px;">
-                <button class="action-btn" id="btn-load-bg" style="font-size: 10px; padding: 5px 10px;">🖼️ Fondo</button>
-                <button class="action-btn" id="btn-show-bom" style="font-size: 10px; padding: 5px 10px;">📦 BOM</button>
-                <button class="action-btn" id="btn-logout" style="font-size: 10px; padding: 5px 10px; color: #f48771;" title="Cerrar sesión">🔓 Sesión</button>
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 6px; padding-right: 8px;">
+                <button class="action-btn" id="btn-load-bg">🖼️ Fondo</button>
+                <button class="action-btn" id="btn-show-bom">📦 BOM</button>
+                <button class="action-btn" id="btn-logout" style="color: #e57373;" title="Cerrar sesión">⏻</button>
             </div>
         </header>
 
