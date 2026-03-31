@@ -25,8 +25,7 @@ export function drawOverlay(ctx, canvas, state) {
         const { x1, y1, x2, y2 } = accion.datos;
         if (!state.viewState.isIsometric) {
             const isVertical = (x1 === x2 && y1 === y2);
-            const isSimVertical = (Math.abs(x2 - x1) > 1 && Math.abs(Math.abs(x2 - x1) - Math.abs(y2 - y1)) < 5.0);
-            if (isVertical || isSimVertical) continue;
+            if (isVertical) continue;
         }
         const p = toScreen((x1 + x2) / 2, (y1 + y2) / 2, ((accion.datos.z1||0) + (accion.datos.z2||0)) / 2);
         ctx.beginPath();

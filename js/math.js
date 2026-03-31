@@ -227,15 +227,15 @@ export function getSmartSnap(mouseX, mouseY, outGuides) {
 
     if (bestX === null && bestY === null && best45 === null) return null;
 
+    const currentZ = state.viewState.currentZ || 0;
     const result = { x: mouseX, y: mouseY };
 
     if (bestX !== null) {
         result.x = bestX.val;
         const p = bestX.source;
-        // Guía vertical desde el endpoint fuente hasta el cursor
         outGuides.push({ 
-            x1: p.x, y1: p.y, 
-            x2: result.x, y2: result.y,
+            x1: p.x, y1: p.y, z1: p.z || 0,
+            x2: result.x, y2: result.y, z2: currentZ,
             tipo: 'vertical'
         });
     }
@@ -243,10 +243,9 @@ export function getSmartSnap(mouseX, mouseY, outGuides) {
     if (bestY !== null) {
         result.y = bestY.val;
         const p = bestY.source;
-        // Guía horizontal desde el endpoint fuente hasta el cursor
         outGuides.push({ 
-            x1: p.x, y1: p.y, 
-            x2: result.x, y2: result.y,
+            x1: p.x, y1: p.y, z1: p.z || 0,
+            x2: result.x, y2: result.y, z2: currentZ,
             tipo: 'horizontal'
         });
     }
@@ -256,8 +255,8 @@ export function getSmartSnap(mouseX, mouseY, outGuides) {
         result.x = best45.x;
         result.y = best45.y;
         outGuides.push({
-            x1: best45.source.x, y1: best45.source.y,
-            x2: result.x, y2: result.y,
+            x1: best45.source.x, y1: best45.source.y, z1: best45.source.z || 0,
+            x2: result.x, y2: result.y, z2: currentZ,
             tipo: 'diagonal'
         });
     }

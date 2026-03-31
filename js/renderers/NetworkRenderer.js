@@ -173,7 +173,8 @@ export function drawNetwork(ctx, canvas, state) {
                 const isAtRiser = lConnect.some(l => {
                     const dx = l.datos.x2 - l.datos.x1;
                     const dy = l.datos.y2 - l.datos.y1;
-                    return (dx === 0 && dy === 0) || (Math.abs(dx) > 1 && Math.abs(Math.abs(dx) - Math.abs(dy)) < 5.0);
+                    const dz = (l.datos.z2 || 0) - (l.datos.z1 || 0);
+                    return (Math.abs(dx) < 1.0 && Math.abs(dy) < 1.0 && Math.abs(dz) > 1.0);
                 });
                 if (isAtRiser) continue;
             }

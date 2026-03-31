@@ -88,17 +88,16 @@ export function initCanvasEvents(c) {
                 state.angleSnapPoint = null;
             }
 
-            // D. Smart Alignment Guides (Only if no other snap)
-            if (!state.snapPoint && !state.angleSnapPoint) {
-                const smart = getSmartSnap(worldPos.x, worldPos.y, state.activeGuides);
-                if (smart) {
+            // D. Smart Alignment Guides (Always compute for visual feedback)
+            {
+                const smartPos = state.angleSnapPoint
+                    ? { x: finalPos.x, y: finalPos.y }
+                    : { x: worldPos.x, y: worldPos.y };
+                const smart = getSmartSnap(smartPos.x, smartPos.y, state.activeGuides);
+                // Only override position if no other snap is active
+                if (smart && !state.snapPoint && !state.angleSnapPoint) {
                     finalPos = { x: smart.x, y: smart.y, z: currentZ };
                 }
-            } else if (!state.snapPoint) {
-                // If angle snap but not vertex, we can still show guides for alignment
-                getSmartSnap(finalPos.x, finalPos.y, state.activeGuides);
-            } else {
-                state.activeGuides = [];
             }
         } else {
             state.snapPoint = null;
