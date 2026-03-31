@@ -11,7 +11,7 @@ RUN npm run build
 # ─────────────────────────────────────────────
 # STAGE 2: Backend + Serving (Python + Gunicorn)
 # ─────────────────────────────────────────────
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 # Evitar la creación de __pycache__ y hacer logs instantáneos
 ENV PYTHONDONTWRITEBYTECODE 1
