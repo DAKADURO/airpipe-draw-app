@@ -105,8 +105,7 @@ export function getAngleSnapPoint(x1, y1, x2, y2, z1) {
     const isIso = state.viewState.isIsometric;
     const { scale, offsetX, offsetY } = state.viewState;
 
-    // 1. Detección de Z (Vertical en pantalla) - DISABLED AS PER USER REQUEST
-    /*
+    // 1. Detección de Z (Vertical en pantalla)
     if (isIso) {
         const p1Screen = projectIso(x1, y1, z1);
         const p2ScreenRaw = {
@@ -136,7 +135,6 @@ export function getAngleSnapPoint(x1, y1, x2, y2, z1) {
             }
         }
     }
-    */
 
     // 2. Snap de ángulos planos (World Space)
     const dx = x2 - x1;
