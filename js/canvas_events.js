@@ -202,6 +202,139 @@ export function initCanvasEvents(c) {
         ToolManager.handleEvent('onClick', e, data);
     });
 
+    // --- SOPORTE PARA TOUCH / TABLET ---
+    let initialPinchDist = null;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Evita mouse events nativos y gestures indeseadas
+
+        if (e.touches.length === 2) {
+            const t1 = e.touches[0];
+            const t2 = e.touches[1];
+            initialPinchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+            state._lastPinchCenter = {
+                x: (t1.clientX + t2.clientX) / 2,
+                y: (t1.clientY + t2.clientY) / 2
+            };
+            return;
+        }
+        
+        if (e.touches.length === 1) {
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                document.activeElement.blur();
+            }
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            touchStartTime = Date.now();
+
+            const syntheticEvent = { clientX: touch.clientX, clientY: touch.clientY, pageX: touch.pageX, pageY: touch.pageY, preventDefault: ()=>{} };
+            const data = extractMouseEventData(syntheticEvent);
+            ToolManager.handleEvent('onMouseDown', syntheticEvent, data);
+            
+            if (state.modoActual === MODO.PAN || state._spacePressed) {
+                state.isPanning = true;
+                state.lastMouse = { x: touch.clientX, y: touch.clientY };
+            }
+        }
+    }, {passive: false});
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault(); 
+        if (e.touches.length === 2) {
+            const t1 = e.touches[0];
+            const t2 = e.touches[1];
+            const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+            const currentCenter = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+            
+            if (initialPinchDist) {
+                const zoomFactor = currentDist / initialPinchDist;
+                let newScale = state.viewState.scale * zoomFactor;
+                newScale = Math.max(0.1, Math.min(newScale, 10.0));
+                
+                const realZoomFactor = newScale / state.viewState.scale;
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = currentCenter.x - rect.left;
+                const mouseY = currentCenter.y - rect.top;
+                
+                state.viewState.offsetX = mouseX - (mouseX - state.viewState.offsetX) * realZoomFactor;
+                state.viewState.offsetY = mouseY - (mouseY - state.viewState.offsetY) * realZoomFactor;
+                state.viewState.scale = newScale;
+                initialPinchDist = currentDist; 
+            }
+            
+            if (state._lastPinchCenter) {
+                const dx = currentCenter.x - state._lastPinchCenter.x;
+                const dy = currentCenter.y - state._lastPinchCenter.y;
+                state.viewState.offsetX += dx;
+                state.viewState.offsetY += dy;
+                state._lastPinchCenter = currentCenter;
+            }
+            scheduleRedraw();
+            return;
+        }
+        
+        if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            const syntheticEvent = { clientX: touch.clientX, clientY: touch.clientY, pageX: touch.pageX, pageY: touch.pageY, preventDefault: ()=>{} };
+            
+            if (state.isPanning) {
+                const dx = syntheticEvent.clientX - state.lastMouse.x;
+                const dy = syntheticEvent.clientY - state.lastMouse.y;
+                state.viewState.offsetX += dx;
+                state.viewState.offsetY += dy;
+                state.lastMouse = { x: syntheticEvent.clientX, y: syntheticEvent.clientY };
+                scheduleRedraw();
+                return;
+            }
+
+            const data = extractMouseEventData(syntheticEvent);
+            ToolManager.handleEvent('onMouseMove', syntheticEvent, data);
+            
+            if (state.modoActual === MODO.LINEA && state.lineaIniciada && state.puntoInicio) {
+                const dx = data.x - state.puntoInicio.x;
+                const dy = data.y - state.puntoInicio.y;
+                const isVertical = !state.viewState.isIsometric && Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs((data.z||0) - (state.puntoInicio.z||0)) > 1;
+                let angulo = Math.atan2(dy, dx) * (180 / Math.PI);
+                if (angulo < 0) angulo += 360;
+                state.angleSnapPoint = { x: data.x, y: data.y, angle: angulo, isVertical, z: data.z };
+            } else {
+                state.angleSnapPoint = null;
+            }
+            scheduleRedraw();
+        }
+    }, {passive: false});
+
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+
+        if (state.isPanning && e.touches.length === 0) {
+            state.isPanning = false;
+        }
+        
+        initialPinchDist = null;
+        state._lastPinchCenter = null;
+        
+        if (e.changedTouches.length === 1 && !state.isPanning) {
+            const touch = e.changedTouches[0];
+            const syntheticEvent = { clientX: touch.clientX, clientY: touch.clientY, pageX: touch.pageX, pageY: touch.pageY, preventDefault: ()=>{} };
+            const data = extractMouseEventData(syntheticEvent);
+            
+            ToolManager.handleEvent('onMouseUp', syntheticEvent, data);
+
+            // Generar synthetic onClick si fue un tap rápido (dist < 15px y tiempo < 500ms)
+            const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+            const timeElapsed = Date.now() - touchStartTime;
+            if (dist < 15 && timeElapsed < 500) {
+                ToolManager.handleEvent('onClick', syntheticEvent, data);
+            }
+        }
+    });
+    // --- FIN SOPORTE TOUCH ---
+
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
         const rect = canvas.getBoundingClientRect();

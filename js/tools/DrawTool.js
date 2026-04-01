@@ -4,29 +4,47 @@ import {PIXELS_POR_METRO } from '../config.js';
 import { setStatus } from '../ui/tools.js';
 
 export const DrawTool = {
-    onMouseDown(e, { worldPos }) {
-        // Nada específico aquí, click maneja la lógica
-    },
-    
-    onClick(e, { worldPos, rawX, rawY, x, y, z }) {
+    onMouseDown(e, { worldPos, rawX, rawY, x, y, z }) {
         if (!state.lineaIniciada) {
             state.lineaIniciada = true;
             state.puntoInicio = { x, y, z };
-            setStatus('Punto de inicio fijado. Clic para terminar la tubería.');
-        } else {
-            state.historial.push({
-                tipo: 'linea',
-                datos: { 
-                    x1: state.puntoInicio.x, y1: state.puntoInicio.y, z1: state.puntoInicio.z,
-                    x2: x, y2: y, z2: z 
-                },
-            });
-            invalidateSnapCache();
-            state.lineaIniciada = false;
-            state.puntoInicio = null;
-            setStatus(`Tubería añadida. (${state.historial.filter(a => a.tipo === 'linea').length} en total)`);
-            scheduleRedraw();
+            state._drawDragStart = { rawX, rawY };
+            state._drawJustStarted = true;
+            setStatus('Punto de inicio fijado. Arrastra o da clic para terminar la tubería.');
+        } 
+    },
+    
+    onMouseUp(e, { worldPos, rawX, rawY, x, y, z }) {
+        if (!state.lineaIniciada) return;
+        
+        let dragged = false;
+        if (state._drawDragStart) {
+            const dist = Math.hypot(rawX - state._drawDragStart.rawX, rawY - state._drawDragStart.rawY);
+            if (dist > 15) dragged = true;
         }
+
+        if (state._drawJustStarted && !dragged) {
+            state._drawJustStarted = false;
+            return;
+        }
+
+        state.historial.push({
+            tipo: 'linea',
+            datos: { 
+                x1: state.puntoInicio.x, y1: state.puntoInicio.y, z1: state.puntoInicio.z,
+                x2: x, y2: y, z2: z 
+            },
+        });
+        invalidateSnapCache();
+        state.lineaIniciada = false;
+        state.puntoInicio = null;
+        state._drawDragStart = null;
+        setStatus(`Tubería añadida. (${state.historial.filter(a => a.tipo === 'linea').length} en total)`);
+        scheduleRedraw();
+    },
+
+    onClick(e, data) {
+        // Ignorado, el flujo híbrido es gobernado por Down y Up
     },
 
     onMouseMove(e, { worldPos, rawX, rawY, x, y, z }) {
