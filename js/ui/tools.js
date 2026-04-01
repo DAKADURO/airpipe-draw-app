@@ -14,7 +14,7 @@ export function updateModeIndicator() {
         [MODO.NINGUNO]: null,
         [MODO.LINEA]: '✏️  Modo: Tubería',
         [MODO.COMPRESOR]: '⚙️  Modo: Compresor',
-        [MODO.CONSUMO]: '🔴  Modo: Punto de Consumo',
+        [MODO.BAJADA]: '🔴  Modo: Bajada',
         [MODO.VALVULA]: '🟢  Modo: Válvula',
         [MODO.ACOTAR]: '📏  Modo: Acotar',
         [MODO.PAN]: '🖐️  Modo: Encuadre',
@@ -33,7 +33,7 @@ export function updateModeIndicator() {
 }
 
 export function setActiveButton(btnKey) {
-    ['btn-cursor', 'btn-line', 'btn-compresor', 'btn-consumo', 'btn-valvula', 'btn-acotar', 'btn-desfase', 'btn-mover', 'btn-borrar', 'btn-pan', 'btn-nota'].forEach(id => {
+    ['btn-cursor', 'btn-line', 'btn-compresor', 'btn-bajada', 'btn-valvula', 'btn-acotar', 'btn-desfase', 'btn-mover', 'btn-borrar', 'btn-pan', 'btn-nota'].forEach(id => {
         const b = document.getElementById(id);
         if (b) b.classList.remove('active');
     });
@@ -65,7 +65,7 @@ export function setModo(nuevoModo, btnId = null) {
     const statusMap = {
         [MODO.LINEA]: 'Clic para iniciar tubería. Segundo clic para terminarla.',
         [MODO.COMPRESOR]: 'Clic en el canvas para colocar un Compresor.',
-        [MODO.CONSUMO]: 'Clic en el canvas para colocar un Punto de Consumo.',
+        [MODO.BAJADA]: 'Clic en el canvas para configurar y colocar una Bajada.',
         [MODO.VALVULA]: 'Clic sobre una tubería para colocar una Válvula de aislamiento.',
         [MODO.ACOTAR]: 'Clic en el primer punto a acotar. Segundo clic para generar la cota.',
         [MODO.BORRAR]: 'MODO BORRADOR: Haz clic sobre cualquier elemento para eliminarlo.',
@@ -92,8 +92,8 @@ export function setupTools() {
     if (btnLine) btnLine.onclick = () => setModo(MODO.LINEA, 'btn-line');
     const btnCompresor = document.getElementById('btn-compresor');
     if (btnCompresor) btnCompresor.onclick = () => setModo(MODO.COMPRESOR, 'btn-compresor');
-    const btnConsumo = document.getElementById('btn-consumo');
-    if (btnConsumo) btnConsumo.onclick = () => setModo(MODO.CONSUMO, 'btn-consumo');
+    const btnBajada = document.getElementById('btn-bajada');
+    if (btnBajada) btnBajada.onclick = () => setModo(MODO.BAJADA, 'btn-bajada');
     const btnValvula = document.getElementById('btn-valvula');
     if (btnValvula) btnValvula.onclick = () => setModo(MODO.VALVULA, 'btn-valvula');
     const btnAcotar = document.getElementById('btn-acotar');

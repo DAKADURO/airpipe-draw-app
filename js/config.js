@@ -18,7 +18,7 @@ export const MODO = {
     NINGUNO: 'ninguno',
     LINEA: 'linea',
     COMPRESOR: 'compresor',
-    CONSUMO: 'consumo',
+    BAJADA: 'bajada',
     VALVULA: 'valvula',
     ACOTAR: 'acotar',
     BORRAR: 'borrar',

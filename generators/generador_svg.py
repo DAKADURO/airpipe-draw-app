@@ -40,7 +40,7 @@ def generar_svg(plano: dict, ancho: int = 1920, alto: int = 1080) -> str:
         '    <style>',
         f'      .tuberia {{ stroke: {COLOR_LINEA}; stroke-width: 2; fill: none; stroke-linecap: round; }}',
         f'      .compresor {{ fill: {COLOR_COMPRESOR}; stroke: none; }}',
-        f'      .consumo {{ fill: {COLOR_CONSUMO}; stroke: none; }}',
+        f'      .bajada {{ fill: {COLOR_CONSUMO}; stroke: none; }}',
         '    </style>',
         '  </defs>',
         f'  <rect width="{ancho}" height="{alto}" fill="white"/>',
@@ -88,8 +88,8 @@ def generar_svg(plano: dict, ancho: int = 1920, alto: int = 1080) -> str:
         tx, ty = tr(nx, ny, nz)
         tx += offset_x; ty += offset_y
         
-        clase = "compresor" if tipo == "compresor" else "consumo"
-        label = "C" if tipo == "compresor" else "P"
+        clase = "compresor" if tipo == "compresor" else "bajada"
+        label = "C" if tipo == "compresor" else "B"
         svg.append(f'    <circle cx="{tx}" cy="{ty}" r="8" class="{clase}"/>')
         svg.append(
             f'    <text x="{tx}" y="{ty + 4}" text-anchor="middle" '

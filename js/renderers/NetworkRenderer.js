@@ -30,7 +30,7 @@ export function drawNetwork(ctx, canvas, state) {
 
     // 3. Dibujar Compresores y Consumos
     const compresores = state.historial.filter(a => a.tipo === 'nodo' && a.datos.tipo === 'compresor');
-    const consumos = state.historial.filter(a => a.tipo === 'nodo' && a.datos.tipo === 'consumo');
+    const consumos = state.historial.filter(a => a.tipo === 'nodo' && a.datos.tipo === 'bajada');
     const r_nodo = RADIO_NODO; 
 
     if (compresores.length > 0) {
@@ -102,17 +102,18 @@ export function drawNetwork(ctx, canvas, state) {
             ctx.lineTo(p.x + s*0.5, p.y);
             ctx.stroke();
 
-            // Letra P (Punto de utilización)
+            // Letra B (Bajada)
             ctx.fillStyle = '#FFFFFF';
             ctx.font = `bold 9px 'Segoe UI', sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('P', p.x, p.y - s*0.3);
+            ctx.fillText('B', p.x, p.y - s*0.3);
 
             // Etiqueta
             ctx.fillStyle = '#EF9A9A';
             ctx.font = `italic 8px 'Segoe UI', sans-serif`;
-            ctx.fillText('CONS', p.x, p.y + r_nodo + 11);
+            const dropSizeStr = accion.datos.dropSize ? ` ${accion.datos.dropSize}` : '';
+            ctx.fillText(`BAJ${dropSizeStr}`, p.x, p.y + r_nodo + 11);
         }
         ctx.restore();
     }

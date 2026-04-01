@@ -12,11 +12,49 @@ export const NodeTool = {
             setStatus('Compresor añadido.');
             scheduleRedraw();
             
-        } else if (state.modoActual === MODO.CONSUMO) {
-            state.historial.push({ tipo: 'nodo', datos: { tipo: 'consumo', x, y, z } });
-            invalidateSnapCache();
-            setStatus('Punto de consumo añadido.');
-            scheduleRedraw();
+        } else if (state.modoActual === MODO.BAJADA) {
+            const dialog = document.getElementById('bajada-dialog');
+            if (dialog) {
+                dialog.style.left = e.pageX + 15 + 'px';
+                dialog.style.top = e.pageY + 15 + 'px';
+                dialog.style.display = 'block';
+                
+                const btnConfirm = document.getElementById('btn-confirm-bajada');
+                const btnCancel = document.getElementById('btn-cancel-bajada');
+                
+                const handleConfirm = () => {
+                    const size = document.getElementById('bajada-size').value;
+                    const height = parseFloat(document.getElementById('bajada-height').value) || 2.0;
+                    const valve = document.getElementById('bajada-valve').value;
+                    
+                    state.historial.push({ 
+                        tipo: 'nodo', 
+                        datos: { tipo: 'bajada', x, y, z, dropSize: size, dropHeight: height, dropValve: valve } 
+                    });
+                    invalidateSnapCache();
+                    setStatus(`Bajada de ${size} añadida a ${height}m.`);
+                    scheduleRedraw();
+                    
+                    dialog.style.display = 'none';
+                    newConfirm.removeEventListener('click', handleConfirm);
+                    newCancel.removeEventListener('click', handleCancel);
+                };
+                
+                const handleCancel = () => {
+                    dialog.style.display = 'none';
+                    setStatus('Creación de bajada cancelada.');
+                    newConfirm.removeEventListener('click', handleConfirm);
+                    newCancel.removeEventListener('click', handleCancel);
+                };
+                
+                const newConfirm = btnConfirm.cloneNode(true);
+                const newCancel = btnCancel.cloneNode(true);
+                btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+                btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+                
+                newConfirm.addEventListener('click', handleConfirm);
+                newCancel.addEventListener('click', handleCancel);
+            }
             
         } else if (state.modoActual === MODO.VALVULA) {
             const snap = getLineSnap(x, y, z);

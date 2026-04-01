@@ -62,8 +62,21 @@ def procesar_plano(plano: dict) -> dict:
                     break 
             v["diametro"] = best_d
 
+    # (8.5) Procesamiento de Bajadas (Drops)
+    bajadas = [n for n in nodos if n.get("tipo") == "bajada"]
+    for b in bajadas:
+        bx, by = b["x"], b["y"]
+        best_d = "N/A"
+        for line in lineas:
+            lx1, ly1, lx2, ly2 = line["x1"], line["y1"], line["x2"], line["y2"]
+            if min(lx1, lx2) - 5 <= bx <= max(lx1, lx2) + 5 and \
+               min(ly1, ly2) - 5 <= by <= max(ly1, ly2) + 5:
+                best_d = line.get("diametro", "N/A")
+                break
+        b["diametro_principal"] = best_d
+
     # (9) Cuenta final y Formateo
-    bom = generar_bom(lineas, piezas, valvulas)
+    bom = generar_bom(lineas, piezas, valvulas, bajadas)
 
     return {
         "lineas": lineas,

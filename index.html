@@ -296,8 +296,8 @@
             background: #2196F3;
         }
 
-        .sym-tapon {
-            background: #F44336;
+        .icon-bajada {
+            background-color: #F44336;
         }
 
         .sym-valvula {
@@ -908,9 +908,9 @@
                         <span class="icon icon-compresor"></span>
                         Compresor
                     </button>
-                    <button class="tool-btn" id="btn-consumo" title="Punto de Consumo">
-                        <span class="icon icon-consumo"></span>
-                        Consumo
+                    <button class="tool-btn" id="btn-bajada" title="Bajada / Drop (Punto de Uso)">
+                        <span class="icon icon-bajada"></span>
+                        Bajada
                     </button>
                     <button class="tool-btn" id="btn-valvula" title="Válvula">
                         <span class="icon icon-valvula"></span>
@@ -1157,6 +1157,38 @@
                     <div class="auth-switch">
                         ¿Ya tienes cuenta? <span id="switch-to-login">Inicia sesión</span>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dialogo de Configuración de Bajada -->
+        <div id="bajada-dialog" class="floating-dialog" style="display: none; position: absolute; background: #1E1E2F; border: 1px solid #4a4a4a; box-shadow: 0 4px 15px rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; z-index: 1000; font-family: 'Segoe UI', sans-serif; min-width: 280px;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #FFF; font-size: 14px; border-bottom: 1px solid #4a4a4a; padding-bottom: 8px;">Configuración de Bajada</h3>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <label style="color: #bcbcbc; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    Diámetro de bajada:
+                    <select id="bajada-size" style="background: #2D2D44; color: #FFF; border: 1px solid #4FC3F7; padding: 4px; border-radius: 4px; outline: none; width: 120px;">
+                        <option value='1"'>1"</option>
+                        <option value='3/4"'>3/4"</option>
+                    </select>
+                </label>
+                <label style="color: #bcbcbc; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    Altura de bajada (m):
+                    <input type="number" id="bajada-height" value="2.0" step="0.1" min="0.1" style="background: #2D2D44; color: #FFF; border: 1px solid #4FC3F7; padding: 4px; border-radius: 4px; width: 110px; outline: none; text-align: right;">
+                </label>
+                <label style="color: #bcbcbc; font-size: 12px; display: flex; flex-direction: column; gap: 5px;">
+                    Terminal Valve (Válvula final):
+                    <select id="bajada-valve" style="background: #2D2D44; color: #FFF; border: 1px solid #4FC3F7; padding: 4px; border-radius: 4px; outline: none; width: 100%;">
+                        <option value="Valve Drop One Port Male">Valve Drop One Port Male</option>
+                        <option value="Valve Drop One Port Female">Valve Drop One Port Female (Wall)</option>
+                        <option value="Valve Drop Two Port Female">Valve Drop Two Port Female (Wall)</option>
+                        <option value="Angle-Valve Drop Two Port Female">Angle-Valve Drop Two Port Female (Wall)</option>
+                        <option value="Ninguna">Ninguna / Solo tubo</option>
+                    </select>
+                </label>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+                    <button id="btn-cancel-bajada" style="background: #4a4a4a; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Cancelar</button>
+                    <button id="btn-confirm-bajada" style="background: #4FC3F7; color: #111; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;">Confirmar</button>
                 </div>
             </div>
         </div>

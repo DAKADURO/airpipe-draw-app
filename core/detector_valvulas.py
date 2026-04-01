@@ -58,7 +58,7 @@ def detectar_valvulas(lineas: list[dict], nodos: list[dict], piezas: list[dict])
 
     # 2. Derivaciones a Consumo (desde Tes)
     tes = [p for p in piezas if "Te" in p.get("tipo", "")]
-    puntos_consumo = [(n["x"], n["y"]) for n in nodos if n.get("tipo") == "punto_consumo"]
+    puntos_consumo = [(n["x"], n["y"]) for n in nodos if n.get("tipo") == "bajada"]
 
     for te in tes:
         tx, ty = te["x"], te["y"]
