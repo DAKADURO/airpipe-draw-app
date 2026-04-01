@@ -105,8 +105,8 @@ export function getAngleSnapPoint(x1, y1, x2, y2, z1) {
     const isIso = state.viewState.isIsometric;
     const { scale, offsetX, offsetY } = state.viewState;
 
-    // 1. Detección de Z (Vertical en pantalla)
-    // En isométrico, si el movimiento en pantalla es vertical, es un cambio de Z.
+    // 1. Detección de Z (Vertical en pantalla) - DISABLED AS PER USER REQUEST
+    /*
     if (isIso) {
         const p1Screen = projectIso(x1, y1, z1);
         const p2ScreenRaw = {
@@ -121,7 +121,6 @@ export function getAngleSnapPoint(x1, y1, x2, y2, z1) {
             let screenAngle = Math.atan2(dy_s, dx_s) * (180 / Math.PI);
             if (screenAngle < 0) screenAngle += 360;
 
-            // En pantalla, 270 es arriba, 90 es abajo.
             let d90 = Math.min(Math.abs(screenAngle - 90), Math.abs(screenAngle - 450));
             let d270 = Math.abs(screenAngle - 270);
 
@@ -131,12 +130,13 @@ export function getAngleSnapPoint(x1, y1, x2, y2, z1) {
                     x: x1,
                     y: y1,
                     z: z1 + deltaZ,
-                    angle: (d270 < d90) ? 90 : 270, // Etiqueta lógica para el usuario
+                    angle: (d270 < d90) ? 90 : 270,
                     isVertical: true
                 };
             }
         }
     }
+    */
 
     // 2. Snap de ángulos planos (World Space)
     const dx = x2 - x1;

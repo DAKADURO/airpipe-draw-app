@@ -200,7 +200,7 @@ export function syncIsometricUI() {
         localStorage.setItem('airpipe_isometric_view', isIso ? 'true' : 'false');
     }
     
-    // Solo ocultamos/mostramos el control de ALTURA (Z), no el checkbox 3D en sí
-    if (zHeightControl) zHeightControl.style.display = isIso ? 'flex' : 'none';
+    // Deshabilitado por petición del usuario - ya no se usa Z manual
+    if (zHeightControl) zHeightControl.style.display = 'none'; // isIso ? 'flex' : 'none';
     if (inputZ) inputZ.value = state.viewState.currentZ || 0;
 }
