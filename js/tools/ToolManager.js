@@ -14,7 +14,7 @@ export const ToolManager = {
         [MODO.LINEA]: DrawTool,
         [MODO.DESFASE]: OffsetTool,
         [MODO.COMPRESOR]: NodeTool,
-        [MODO.CONSUMO]: NodeTool,
+        [MODO.BAJADA]: NodeTool,
         [MODO.VALVULA]: NodeTool,
         [MODO.NOTA]: NodeTool,
         [MODO.ACOTAR]: DimensionTool
