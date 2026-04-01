@@ -31,7 +31,7 @@ def generar_svg(plano: dict, ancho: int = 1920, alto: int = 1080) -> str:
         offset_y = alto / 4 # Un poco arriba para que las bajadas no se corten
 
     svg = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} {alto}">',
+        f'<svg xmlns="https://www.w3.org/2000/svg" viewBox="0 0 {ancho} {alto}">',
         '  <desc>Generado por AIRpipe</desc>',
         '  <defs>',
         f'    <pattern id="grid" width="{GRID_SIZE}" height="{GRID_SIZE}" patternUnits="userSpaceOnUse">',

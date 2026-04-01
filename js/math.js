@@ -173,7 +173,7 @@ export function getAngleSnapPoint(x1, y1, x2, y2, z1) {
     return null;
 }
 
-export function getSmartSnap(mouseX, mouseY, outGuides) {
+export function getSmartSnap(mouseX, mouseY, outGuides, overrideZ = null) {
     const puntos = getSnapPoints(); 
     const currentGuideTolerance = SNAP_GUIDE_TOLERANCE / state.viewState.scale;
     const isIso = state.viewState.isIsometric;
@@ -236,7 +236,7 @@ export function getSmartSnap(mouseX, mouseY, outGuides) {
 
     if (bestX === null && bestY === null && best45 === null) return null;
 
-    const currentZ = state.viewState.currentZ || 0;
+    const currentZ = overrideZ !== null ? overrideZ : (state.viewState.currentZ || 0);
     const result = { x: mouseX, y: mouseY };
 
     if (bestX !== null) {

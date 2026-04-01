@@ -93,11 +93,21 @@ export function initCanvasEvents(c) {
                 const smartPos = state.angleSnapPoint
                     ? { x: finalPos.x, y: finalPos.y }
                     : { x: worldPos.x, y: worldPos.y };
-                const smart = getSmartSnap(smartPos.x, smartPos.y, state.activeGuides);
-                // Allow smart snap to override position even if angle snap is active (to find intersections)
-                // but vertex snap (!state.snapPoint) always has priority.
+                
+                let overrideZ = currentZ;
+                if (state.angleSnapPoint && state.angleSnapPoint.z !== undefined) {
+                    overrideZ = state.angleSnapPoint.z;
+                } else if (state.lineaIniciada && state.puntoInicio && state.puntoInicio.z !== undefined) {
+                    overrideZ = state.puntoInicio.z;
+                }
+
+                const smart = getSmartSnap(smartPos.x, smartPos.y, state.activeGuides, overrideZ);
+                
                 if (smart && !state.snapPoint) {
-                    finalPos = { x: smart.x, y: smart.y, z: currentZ };
+                    // Si el usuario está moviendo exclusivamente el eje Z, no dejamos que un alineamiento en X/Y arruine su eje vertical.
+                    if (!(state.angleSnapPoint && state.angleSnapPoint.isVertical)) {
+                        finalPos = { x: smart.x, y: smart.y, z: overrideZ };
+                    }
                 }
             }
         } else {
