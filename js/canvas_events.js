@@ -104,9 +104,23 @@ export function initCanvasEvents(c) {
                 const smart = getSmartSnap(smartPos.x, smartPos.y, state.activeGuides, overrideZ);
                 
                 if (smart && !state.snapPoint) {
-                    // Si el usuario está moviendo exclusivamente el eje Z, no dejamos que un alineamiento en X/Y arruine su eje vertical.
                     if (!(state.angleSnapPoint && state.angleSnapPoint.isVertical)) {
-                        finalPos = { x: smart.x, y: smart.y, z: overrideZ };
+                        if (state.angleSnapPoint) {
+                            // Si estamos restringidos ortogonalmente por el Snap de Ángulo, respetamos esa restricción
+                            const a = state.angleSnapPoint.angle;
+                            if (a === 90 || a === 270) {
+                                // Locked on Y axis (X is constant)
+                                finalPos = { x: state.angleSnapPoint.x, y: smart.y, z: overrideZ };
+                            } else if (a === 0 || a === 180 || a === 360) {
+                                // Locked on X axis (Y is constant)
+                                finalPos = { x: smart.x, y: state.angleSnapPoint.y, z: overrideZ };
+                            } else {
+                                // Diagonal / Isométrico no se traba rígidamente a SmartSnap (evita saltos raros)
+                                finalPos = { x: smart.x, y: smart.y, z: overrideZ };
+                            }
+                        } else {
+                            finalPos = { x: smart.x, y: smart.y, z: overrideZ };
+                        }
                     }
                 }
             }

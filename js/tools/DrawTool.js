@@ -106,7 +106,42 @@ export const DrawTool = {
                 return;
             } 
             
-            dx /= currentDist; dy /= currentDist; dz /= currentDist;
+            // Constrain the tracking vector to strictly orthogonal / 45-degree global angles
+            const isIso = state.viewState.isIsometric;
+            let trackingAng = Math.atan2(dy, dx) * (180 / Math.PI);
+            if (trackingAng < 0) trackingAng += 360;
+
+            const targetAngles = isIso ? [0, 90, 180, 270] : [0, 45, 90, 135, 180, 225, 270, 315];
+            let closestAngle = trackingAng;
+            let minDiff = Infinity;
+            for (const a of targetAngles) {
+                let diff = Math.abs(trackingAng - a);
+                if (diff > 180) diff = 360 - diff;
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestAngle = a;
+                }
+            }
+
+            // Snap it strictly if it is within a reasonable tracking tolerance (e.g., 30 degrees)
+            if (minDiff <= 30) {
+                const rad = closestAngle * (Math.PI / 180);
+                // Math.cos and Math.sin can return extremely small numbers instead of exactly 0
+                dx = Math.round(Math.cos(rad) * 1e8) / 1e8;
+                dy = Math.round(Math.sin(rad) * 1e8) / 1e8;
+            } else {
+                dx /= currentDist; 
+                dy /= currentDist; 
+            }
+            
+            // For isometric Z tracking (vertical screen)
+            if (isIso && state.angleSnapPoint && state.angleSnapPoint.isVertical) {
+                 dx = 0;
+                 dy = 0;
+                 dz = dz > 0 ? 1 : -1;
+            } else {
+                 dz = 0; // Prevent accidental Z drift in O-Track if not strictly vertical
+            }
 
             const pxDistancia = distancia * PIXELS_POR_METRO;
             const finalX = origen.x + dx * pxDistancia;
