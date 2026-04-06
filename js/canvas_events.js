@@ -405,21 +405,27 @@ export function initCanvasEvents(c) {
         const isDigitKey = /^[0-9]$/.test(e.key);
         const isNumpadDigit = /^Numpad[0-9]$/.test(e.code);
         
-        if (state.modoActual === MODO.LINEA && state.lineaIniciada && state.puntoInicio &&
+        if (state.modoActual === MODO.LINEA && 
             !e.ctrlKey && !e.altKey && !e.metaKey && (isDigitKey || isNumpadDigit) && state.puntoMouse) {
             
-            let numValue = isDigitKey ? e.key : e.code.replace('Numpad', '');
-            const zPos = state.puntoMouse.z !== undefined ? state.puntoMouse.z : 0;
-            const screenPos = toScreen(state.puntoMouse.x, state.puntoMouse.y, zPos);
+            // Permitir entrada manual tanto si estamos trazando una línea, 
+            // como si estamos usando rastreo (O-Track) desde una esquina sin haber iniciado la línea
+            const isTracking = !state.lineaIniciada && (state.activeGuides?.length > 0 || state.snapPoint);
             
-            if (lengthInput) {
-                lengthInput.style.display = 'block';
-                lengthInput.style.left = (screenPos.x + 20) + 'px';
-                lengthInput.style.top = (screenPos.y + 20) + 'px';
-                lengthInput.value = numValue;
-                lengthInput.focus();
+            if (state.lineaIniciada || isTracking) {
+                let numValue = isDigitKey ? e.key : e.code.replace('Numpad', '');
+                const zPos = state.puntoMouse.z !== undefined ? state.puntoMouse.z : 0;
+                const screenPos = toScreen(state.puntoMouse.x, state.puntoMouse.y, zPos);
+                
+                if (lengthInput) {
+                    lengthInput.style.display = 'block';
+                    lengthInput.style.left = (screenPos.x + 20) + 'px';
+                    lengthInput.style.top = (screenPos.y + 20) + 'px';
+                    lengthInput.value = numValue;
+                    lengthInput.focus();
+                }
+                e.preventDefault();
             }
-            e.preventDefault();
         }
     });
 
