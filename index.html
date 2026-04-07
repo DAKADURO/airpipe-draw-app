@@ -54,17 +54,26 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 0 14px;
-            border-right: 1px solid rgba(255,255,255,0.06);
-            height: 70%;
-            min-width: 70px;
+            padding: 0 20px;
+            border-right: 1px solid rgba(255,255,255,0.08);
+            height: 100%;
+            min-width: 100px;
+            background: rgba(0,0,0,0.1);
+        }
+        .ribbon-brand img {
+            height: 42px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+            margin-bottom: 2px;
         }
         .ribbon-brand p {
-            font-size: 7px;
+            font-size: 8px;
             text-transform: uppercase;
-            color: #555;
-            letter-spacing: 2px;
-            margin-top: 2px;
+            color: #aaa;
+            letter-spacing: 1.5px;
+            margin-top: 0;
+            font-weight: 600;
         }
 
         .ribbon-group {
@@ -883,9 +892,9 @@
         <!-- Top Ribbon -->
         <header id="ribbon">
             <div class="ribbon-brand">
-                <img src="logo_airpipe.png" alt="AIRpipe Logo" style="height: 32px; width: auto; object-fit: contain;">
-                <p style="font-size: 7px; text-transform: uppercase; color: #555; letter-spacing: 2px; margin-top: 2px;">v3.0.1</p>
-                <div id="project-name-display" style="font-size: 10px; color: #4fc3f7; margin-top: 2px; font-weight: 500;"></div>
+                <img src="logo_airpipe.png" alt="AIRpipe Logo">
+                <p>v3.0.1</p>
+                <div id="project-name-display"></div>
             </div>
 
             <div class="ribbon-group">
