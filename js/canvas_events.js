@@ -4,7 +4,8 @@ import { redraw, scheduleRedraw, canvas } from './drawing.js';
 import { MODO, PIXELS_POR_METRO } from './config.js';
 import { ToolManager } from './tools/ToolManager.js';
 // import { setModoGlobal } from './main.js'; // Eliminated, was causing SyntaxError crash
-import { DrawTool } from './tools/DrawTool.js'; // Needed specifically for manual length
+import { DrawTool } from './tools/DrawTool.js';
+import { DimensionTool } from './tools/DimensionTool.js'; 
 
 export function getModeCursor(modo) {
     if (state._spacePressed) return 'grab';
@@ -376,7 +377,10 @@ export function initCanvasEvents(c) {
         lengthInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 const val = parseFloat(lengthInput.value);
-                if (!isNaN(val) && val > 0) DrawTool.confirmarLongitudManual(val);
+                if (!isNaN(val) && val > 0) {
+                    if (state.modoActual === MODO.LINEA) DrawTool.confirmarLongitudManual(val);
+                    else if (state.modoActual === MODO.ACOTAR) DimensionTool.confirmarLongitudManual(val);
+                }
                 lengthInput.value = '';
                 lengthInput.style.display = 'none';
                 canvas.focus();
@@ -419,14 +423,15 @@ export function initCanvasEvents(c) {
         const isDigitKey = /^[0-9]$/.test(e.key);
         const isNumpadDigit = /^Numpad[0-9]$/.test(e.code);
         
-        if (state.modoActual === MODO.LINEA && 
+        if ((state.modoActual === MODO.LINEA || state.modoActual === MODO.ACOTAR) && 
             !e.ctrlKey && !e.altKey && !e.metaKey && (isDigitKey || isNumpadDigit) && state.puntoMouse) {
             
-            // Permitir entrada manual tanto si estamos trazando una línea, 
-            // como si estamos usando rastreo (O-Track) desde una esquina sin haber iniciado la línea
-            const isTracking = !state.lineaIniciada && (state.activeGuides?.length > 0 || state.snapPoint);
+            // Permitir entrada manual tanto si estamos trazando una línea/cota, 
+            // como si estamos usando rastreo (O-Track) desde una esquina sin haber iniciado
+            const isTracking = state.modoActual === MODO.LINEA && !state.lineaIniciada && (state.activeGuides?.length > 0 || state.snapPoint);
+            const isActiveOp = state.lineaIniciada || state.cotaInicio || isTracking;
             
-            if (state.lineaIniciada || isTracking) {
+            if (isActiveOp) {
                 let numValue = isDigitKey ? e.key : e.code.replace('Numpad', '');
                 const zPos = state.puntoMouse.z !== undefined ? state.puntoMouse.z : 0;
                 const screenPos = toScreen(state.puntoMouse.x, state.puntoMouse.y, zPos);
