@@ -26,6 +26,7 @@ export const MODO = {
     NOTA: 'nota',
     DESFASE: 'desfase',
     MOVER: 'mover',
+    MATRIZ: 'matriz'
 };
 
 // Nuevos colores estilo AutoCAD (Carbón)

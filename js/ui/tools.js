@@ -21,7 +21,8 @@ export function updateModeIndicator() {
         [MODO.NOTA]: '📝  Modo: Nota',
         [MODO.DESFASE]: '⫽  Modo: Paralela',
         [MODO.MOVER]: '✥  Modo: Mover',
-        [MODO.BORRAR]: '🗑️  Modo: Borrador'
+        [MODO.BORRAR]: '🗑️  Modo: Borrador',
+        [MODO.MATRIZ]: '▦  Modo: Matriz'
     };
     const label = labels[state.modoActual];
     if (label) {
@@ -33,7 +34,7 @@ export function updateModeIndicator() {
 }
 
 export function setActiveButton(btnKey) {
-    ['btn-cursor', 'btn-line', 'btn-compresor', 'btn-bajada', 'btn-valvula', 'btn-acotar', 'btn-desfase', 'btn-mover', 'btn-borrar', 'btn-pan', 'btn-nota'].forEach(id => {
+    ['btn-cursor', 'btn-line', 'btn-compresor', 'btn-bajada', 'btn-valvula', 'btn-acotar', 'btn-desfase', 'btn-mover', 'btn-borrar', 'btn-pan', 'btn-nota', 'btn-matriz'].forEach(id => {
         const b = document.getElementById(id);
         if (b) b.classList.remove('active');
     });
@@ -73,6 +74,7 @@ export function setModo(nuevoModo, btnId = null) {
         [MODO.NOTA]: 'MODO NOTA: Haz clic en el canvas para añadir una anotación de texto.',
         [MODO.DESFASE]: 'MODO PARALELA: Haz clic en una tubería para duplicar su trayecto completo.',
         [MODO.MOVER]: 'MODO MOVER: Selecciona elementos primero. Clic en ancla base -> Clic en destino.',
+        [MODO.MATRIZ]: 'MODO MATRIZ: 1. Selecciona bajada origen -> 2. Selecciona tubería destino.',
     };
     setStatus(statusMap[nuevoModo] || '');
     updateModeIndicator();
@@ -108,6 +110,8 @@ export function setupTools() {
     if (btnPan) btnPan.onclick = () => setModo(MODO.PAN, 'btn-pan');
     const btnNota = document.getElementById('btn-nota');
     if (btnNota) btnNota.onclick = () => setModo(MODO.NOTA, 'btn-nota');
+    const btnMatriz = document.getElementById('btn-matriz');
+    if (btnMatriz) btnMatriz.onclick = () => setModo(MODO.MATRIZ, 'btn-matriz');
 
     const btnUndo = document.getElementById('btn-undo');
     if (btnUndo) btnUndo.onclick = () => {
@@ -180,6 +184,7 @@ export function setupTools() {
             state.isSelecting = false;
             state.moveAnchor = null;
             state.cotaInicio = null;
+            state._patternSource = null;
             import('../drawing.js').then(d => d.scheduleRedraw());
         }
     });

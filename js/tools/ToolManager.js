@@ -5,6 +5,7 @@ import { SelectTool } from './SelectTool.js';
 import { OffsetTool } from './OffsetTool.js';
 import { NodeTool } from './NodeTool.js';
 import { DimensionTool } from './DimensionTool.js';
+import { PatternTool } from './PatternTool.js';
 
 export const ToolManager = {
     tools: {
@@ -17,7 +18,8 @@ export const ToolManager = {
         [MODO.BAJADA]: NodeTool,
         [MODO.VALVULA]: NodeTool,
         [MODO.NOTA]: NodeTool,
-        [MODO.ACOTAR]: DimensionTool
+        [MODO.ACOTAR]: DimensionTool,
+        [MODO.MATRIZ]: PatternTool
     },
     
     handleEvent(eventType, e, mouseData) {
