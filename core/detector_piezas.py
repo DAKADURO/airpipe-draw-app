@@ -127,8 +127,6 @@ def detectar_piezas(lineas: list[dict], nodos_hardware: list[dict] = None, is_is
                 })
             elif abs(angle_3d - 135) <= 15.0 or abs(angle_3d - 45) <= 15.0:
                 tipo = "Codo 45"
-                if is_isometric:
-                    tipo = "Codo" # En isométrico preferimos codos de 90 si están en umbrales intermedios
                 piezas.append({
                     "tipo": tipo,
                     "x": x, "y": y, "z": z, "angulos": angulos_xy,
