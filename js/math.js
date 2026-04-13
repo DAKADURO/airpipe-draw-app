@@ -5,15 +5,6 @@ export const SNAP_ANGLE = 22.5;
 export const SNAP_GUIDE_TOLERANCE = 10;
 export const ANGULOS_SNAP = [0, 45, 90, 135, 180, 225, 270, 315];
 
-export function toWorld(screenX, screenY, currentZ = null) {
-    const { scale, offsetX, offsetY, isIsometric } = state.viewState;
-    const rawX = (screenX - offsetX) / scale;
-    const rawY = (screenY - offsetY) / scale;
-
-    if (!isIsometric) {
-        return { x: rawX, y: rawY, z: 0 };
-    }
-
 // Constants for asymmetric isometric projection (breaks 45-degree vertical overlap)
 const ISO_ALPHA = 30 * Math.PI / 180;
 const ISO_BETA  = 35 * Math.PI / 180;
