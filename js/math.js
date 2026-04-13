@@ -14,19 +14,36 @@ export function toWorld(screenX, screenY, currentZ = null) {
         return { x: rawX, y: rawY, z: 0 };
     }
 
-    // Inversión Isométrica precisa (Isoplane Top)
+// Constants for asymmetric isometric projection (breaks 45-degree vertical overlap)
+const ISO_ALPHA = 30 * Math.PI / 180;
+const ISO_BETA  = 35 * Math.PI / 180;
+const C_ALPHA = Math.cos(ISO_ALPHA);
+const S_ALPHA = Math.sin(ISO_ALPHA);
+const C_BETA  = Math.cos(ISO_BETA);
+const S_BETA  = Math.sin(ISO_BETA);
+const SIN_SUM = Math.sin(ISO_ALPHA + ISO_BETA);
+
+export function toWorld(screenX, screenY, currentZ = null) {
+    const { scale, offsetX, offsetY, isIsometric } = state.viewState;
+    const rawX = (screenX - offsetX) / scale;
+    const rawY = (screenY - offsetY) / scale;
+
+    if (!isIsometric) {
+        return { x: rawX, y: rawY, z: 0 };
+    }
+
+    // Precise Asymmetric Isometric Inversion
     const z = currentZ !== null ? currentZ : state.viewState.currentZ;
-    const s3 = Math.sqrt(3);
-    const y = (rawY + z) - (rawX / s3);
-    const x = 2 * (rawY + z) - y;
-    return { x, y, z };
+    const worldY = ( (rawY + z) * C_ALPHA - rawX * S_ALPHA ) / SIN_SUM;
+    const worldX = ( rawX * S_BETA + (rawY + z) * C_BETA ) / SIN_SUM;
+    
+    return { x: worldX, y: worldY, z };
 }
 
 export function projectIso(worldX, worldY, worldZ = 0) {
-    const cos30 = 0.86602540378; 
     return {
-        x: (worldX - worldY) * cos30,
-        y: (worldX + worldY) * 0.5 - worldZ
+        x: worldX * C_ALPHA - worldY * C_BETA,
+        y: worldX * S_ALPHA + worldY * S_BETA - worldZ
     };
 }
 
@@ -62,6 +79,13 @@ export function getSnapPoints() {
             puntos.push({ x: (x1 + x2) / 2, y: (y1 + y2) / 2, z: (z1 + z2) / 2, tipo: 'medio' });
         } else if (accion.tipo === 'nodo') {
             puntos.push({ x: accion.datos.x, y: accion.datos.y, z: accion.datos.z || 0, tipo: 'extremo' });
+        } else if (accion.tipo === 'cota') {
+            const { x1, y1, x2, y2 } = accion.datos;
+            const z1 = accion.datos.z1 || 0;
+            const z2 = accion.datos.z2 || 0;
+            puntos.push({ x: x1, y: y1, z: z1, tipo: 'extremo' });
+            puntos.push({ x: x2, y: y2, z: z2, tipo: 'extremo' });
+            puntos.push({ x: (x1 + x2) / 2, y: (y1 + y2) / 2, z: (z1 + z2) / 2, tipo: 'medio' });
         }
     }
 

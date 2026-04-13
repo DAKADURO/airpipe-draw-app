@@ -32,12 +32,18 @@ def procesar_plano(plano: dict) -> dict:
     tipo_red    = plano.get("tipo_red", "lineal")
     is_isometric = plano.get("is_isometric", False)
 
-    # (1-3) Sanitización Geométrica
-    lineas = fragmentar_intersecciones(lineas)
+    # (1-2) Sanitización Geométrica Inicial
     lineas = filtrar_ruido(lineas)
     lineas = rectificar_ejes(lineas)
 
-    # (4) Unión de Nodos Topológicos
+    # (3) Unión de Nodos Topológicos post-rectificación (Join messy endpoints)
+    lineas, nodos = fusionar_intersecciones(lineas, nodos)
+
+    # (4) Fragmentación de Intersecciones y Uniones T
+    # Ahora que los ejes están rectos, es más probable que las T se detecten correctamente
+    lineas = fragmentar_intersecciones(lineas)
+
+    # (4.5) Segunda unión para consolidar fragmentos y nuevas intersecciones
     lineas, nodos = fusionar_intersecciones(lineas, nodos)
 
     # (5) Cálculos Hidráulicos (Diámetros)

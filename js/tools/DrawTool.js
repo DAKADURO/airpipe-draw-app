@@ -32,7 +32,8 @@ export const DrawTool = {
             tipo: 'linea',
             datos: { 
                 x1: state.puntoInicio.x, y1: state.puntoInicio.y, z1: state.puntoInicio.z,
-                x2: x, y2: y, z2: z 
+                x2: x, y2: y, z2: z,
+                planar_intent: !state.viewState.isIsometric
             },
         });
         invalidateSnapCache();
@@ -74,7 +75,14 @@ export const DrawTool = {
             const finalY = y1 + dy * pxDistancia;
             const finalZ = z1 + dz * pxDistancia;
 
-            state.historial.push({ tipo: 'linea', datos: { x1, y1, z1, x2: finalX, y2: finalY, z2: finalZ } });
+            state.historial.push({ 
+                tipo: 'linea', 
+                datos: { 
+                    x1, y1, z1, 
+                    x2: finalX, y2: finalY, z2: finalZ,
+                    planar_intent: !state.viewState.isIsometric
+                } 
+            });
             invalidateSnapCache(); 
             state.lineaIniciada = false;
             state.puntoInicio = null;

@@ -130,7 +130,8 @@ export function drawNetwork(ctx, canvas, state) {
             if (linea.diametro) {
                 if (!isIso) {
                     const isVertical = (linea.x1 === linea.x2 && linea.y1 === linea.y2);
-                    const isSimVertical = (Math.abs(linea.x2 - linea.x1) > 1 && Math.abs(Math.abs(linea.x2 - linea.x1) - Math.abs(linea.y2 - linea.y1)) < 2.0);
+                    // Si tiene intención planar, NO la consideramos vertical simétrica (error de 45°)
+                    const isSimVertical = !linea.planar_intent && (Math.abs(linea.x2 - linea.x1) > 1 && Math.abs(Math.abs(linea.x2 - linea.x1) - Math.abs(linea.y2 - linea.y1)) < 2.0);
                     if (isVertical || isSimVertical) continue;
                 }
                 const mx = (linea.x1 + linea.x2) / 2;

@@ -1,4 +1,4 @@
-import { state } from '../state.js';
+import { state, invalidateSnapCache } from '../state.js';
 import { scheduleRedraw } from '../drawing.js';
 import { setStatus } from '../ui/tools.js';
 import { PIXELS_POR_METRO } from '../config.js';
@@ -18,6 +18,7 @@ export const DimensionTool = {
                     offset: 30 / state.viewState.scale 
                 }
             });
+            invalidateSnapCache();
             state.cotaInicio = null;
             setStatus('Cota añadida.');
             scheduleRedraw();
@@ -62,6 +63,7 @@ export const DimensionTool = {
             }
         });
 
+        invalidateSnapCache();
         state.cotaInicio = null;
         setStatus(`Cota de ${distancia}m añadida.`);
         scheduleRedraw();

@@ -1,6 +1,6 @@
 import math
 
-SNAP_DISTANCE_PX = 20
+SNAP_DISTANCE_PX = 25
 
 def _interseccion_segmentos(p1, p2, p3, p4) -> tuple | None:
     x1, y1 = p1; x2, y2 = p2
@@ -16,7 +16,7 @@ def _interseccion_segmentos(p1, p2, p3, p4) -> tuple | None:
         return (round(x1 + t * (x2 - x1), 4), round(y1 + t * (y2 - y1), 4))
     return None
 
-def _punto_sobre_segmento_3d(px, py, pz, linea, tol=5.0):
+def _punto_sobre_segmento_3d(px, py, pz, linea, tol=8.0):
     x1, y1 = linea["x1"], linea["y1"]
     z1 = linea.get("z1", 0)
     x2, y2 = linea["x2"], linea["y2"]
