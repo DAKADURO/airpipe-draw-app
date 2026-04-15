@@ -2,7 +2,6 @@ import { initCanvas, redraw } from './drawing.js';
 import { initCanvasEvents } from './canvas_events.js';
 import { setupUI } from './ui.js';
 import { updateAuthUI } from './api.js';
-import { setupAdminPortal } from './ui/admin.js';
 
 window.onerror = function(msg, url, line) { alert("JS Crash: " + msg + " at line " + line); };
 
@@ -24,9 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 4. Hook up geometric mouse calculations on the canvas zone
     initCanvasEvents(canvas);
-
-    // 5. Setup Admin Portal
-    setupAdminPortal();
 
     // 5. Present the canvas to the user
     redraw();

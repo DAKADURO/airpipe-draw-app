@@ -10,7 +10,6 @@ from extensions import db
 from routers.auth import auth_bp
 from routers.projects import projects_bp
 from routers.processing import processing_bp
-from routers.admin import admin_bp
 
 app = Flask(__name__, static_folder='.')
 
@@ -46,7 +45,6 @@ migrate = Migrate(app, db)
 app.register_blueprint(auth_bp)
 app.register_blueprint(projects_bp)
 app.register_blueprint(processing_bp)
-app.register_blueprint(admin_bp)
 
 # ── Auto-crear tablas en producción ─────────────────────────────
 with app.app_context():

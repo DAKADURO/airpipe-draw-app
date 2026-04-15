@@ -14,17 +14,8 @@ export function updateAuthUI() {
     if (authModal) {
         if (token) {
             authModal.classList.add('hidden');
-            // Gestión de visibilidad admin
-            const userStr = localStorage.getItem('draw_user');
-            const adminGroup = document.getElementById('group-admin');
-            if (userStr && adminGroup) {
-                const user = JSON.parse(userStr);
-                adminGroup.style.display = user.role === 'admin' ? 'flex' : 'none';
-            }
         } else {
             authModal.classList.remove('hidden');
-            const adminGroup = document.getElementById('group-admin');
-            if (adminGroup) adminGroup.style.display = 'none';
         }
     }
 }
@@ -39,7 +30,6 @@ export async function login(email, password) {
         const data = await resp.json();
         if (resp.ok) {
             localStorage.setItem('draw_token', data.access_token);
-            if (data.user) localStorage.setItem('draw_user', JSON.stringify(data.user));
             updateAuthUI();
             return { success: true };
         } else {
@@ -131,31 +121,6 @@ export async function downloadPDFDirect(plano, bgBase64 = null, nombre = "Plano 
             nombre,
             cliente
         })
-    });
-    return resp;
-}
-
-// Admin
-export async function getUsers() {
-    const resp = await fetch(`${API_BASE}/admin/users`, {
-        headers: getAuthHeaders()
-    });
-    return resp;
-}
-
-export async function updateUser(id, data) {
-    const resp = await fetch(`${API_BASE}/admin/users/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data)
-    });
-    return resp;
-}
-
-export async function deleteUser(id) {
-    const resp = await fetch(`${API_BASE}/admin/users/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
     });
     return resp;
 }

@@ -33,14 +33,5 @@ def login():
     if user is None or not pbkdf2_sha256.verify(datos["password"], user.password_hash):
         return jsonify({"error": "Credenciales inválidas"}), 401
 
-    if not user.is_approved:
-        return jsonify({"error": "Usuario pendiente de aprobación. Contacte al administrador."}), 403
-
     token = create_access_token(identity=str(user.id))
-    return jsonify({
-        "access_token": token, 
-        "user": {
-            "email": user.email,
-            "role": user.role
-        }
-    }), 200
+    return jsonify({"access_token": token, "user": {"email": user.email}}), 200
