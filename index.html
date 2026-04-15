@@ -1025,6 +1025,16 @@
                 <div class="ribbon-group-label">Proyecto</div>
             </div>
 
+            <div class="ribbon-group" id="group-admin" style="display: none;">
+                <div class="ribbon-tools">
+                    <button class="tool-btn" id="btn-admin-portal" title="Portal de Administración" style="color: #ff9800;">
+                        🛡️
+                        Admin
+                    </button>
+                </div>
+                <div class="ribbon-group-label">Administración</div>
+            </div>
+
             <div style="margin-left: auto; display: flex; align-items: center; gap: 6px; padding-right: 8px;">
                 <button class="action-btn" id="btn-load-bg">🖼️ Fondo</button>
                 <button class="action-btn" id="btn-show-bom">📦 BOM</button>
@@ -1192,6 +1202,32 @@
                 <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
                     <button id="btn-cancel-bajada" style="background: #4a4a4a; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Cancelar</button>
                     <button id="btn-confirm-bajada" style="background: #4FC3F7; color: #111; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;">Confirmar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Portal Modal -->
+        <div id="admin-modal" class="hidden" style="position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:2100; backdrop-filter:blur(10px);">
+            <div class="modal-content" style="min-width: 600px; max-width: 800px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin:0;">🛡️ Portal de Administración</h2>
+                    <button id="btn-close-admin" class="action-btn">Cerrar</button>
+                </div>
+                
+                <div style="flex: 1; overflow-y: auto;">
+                    <table class="bom-table" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Estado</th>
+                                <th>Rol</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-users-list">
+                            <!-- Usuarios cargados dinámicamente -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
