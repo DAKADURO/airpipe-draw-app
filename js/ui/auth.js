@@ -1,4 +1,5 @@
 import { login, register } from '../api.js';
+import { showToast } from './toast.js';
 
 export function setupAuth() {
     const loginForm = document.getElementById('login-form');
@@ -7,7 +8,7 @@ export function setupAuth() {
             e.preventDefault();
             const res = await login(document.getElementById('login-email').value, document.getElementById('login-password').value);
             if (res.success) location.reload();
-            else alert(res.error);
+            else showToast(res.error, 'error');
         };
     }
 
@@ -17,9 +18,9 @@ export function setupAuth() {
             e.preventDefault();
             const res = await register(document.getElementById('register-email').value, document.getElementById('register-password').value);
             if (res.success) {
-                alert("Registro exitoso. Ahora puedes iniciar sesión.");
+                showToast("Registro exitoso. Ahora puedes iniciar sesión.", 'success');
                 document.getElementById('switch-to-login').click();
-            } else alert(res.error);
+            } else showToast(res.error, 'error');
         };
     }
     

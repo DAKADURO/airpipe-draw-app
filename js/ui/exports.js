@@ -2,6 +2,7 @@ import { state } from '../state.js';
 import { procesarPlano, downloadPDF, downloadPDFDirect } from '../api.js';
 import { setStatus } from './tools.js';
 import { syncIsometricUI } from './scene_panel.js';
+import { showToast } from './toast.js';
 
 export function setupExports(canvas) {
     const svgContainer = document.getElementById('svg-container');
@@ -143,7 +144,7 @@ export function setupExports(canvas) {
             URL.revokeObjectURL(url);
             setStatus('PDF generado y descargado exitosamente.');
         } catch (err) {
-            alert("Error al generar el PDF: " + err.message);
+            showToast("Error al generar el PDF: " + err.message, 'error');
             setStatus('Error al generar PDF: ' + err.message);
         } finally {
             if (btn1) btn1.disabled = false;

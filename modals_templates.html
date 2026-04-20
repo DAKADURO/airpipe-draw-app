@@ -1,0 +1,150 @@
+<!-- 
+    AIRpipe DRAW v3.0.1 — HTML Modals Templates
+    This file contains all the modal overlays and floating dialogs 
+    that are loaded dynamically to keep index.html clean.
+-->
+
+<!-- SVG Modal Overlay -->
+<div id="svg-modal" class="hidden">
+    <div class="modal-content">
+        <h2>Plano Generado</h2>
+        <div id="svg-container"></div>
+        <div class="modal-actions">
+            <button id="btn-download" class="action-btn primary">💾 Descargar SVG</button>
+            <button id="btn-download-dxf" class="action-btn secondary">💾 Descargar DXF</button>
+            <button id="btn-download-pdf" class="action-btn"
+                style="background: #D32F2F; color: white; border-color: #EF5350;">📄 Reporte PDF</button>
+            <button id="btn-close" class="action-btn">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- BOM Modal Overlay -->
+<div id="bom-modal" class="hidden">
+    <div class="modal-content" style="min-width: 450px;">
+        <h2>Lista de Materiales (BOM)</h2>
+        <div id="bom-container"
+            style="overflow-y: auto; max-height: 50vh; background: #0F3460; border-radius: 8px;">
+            <table class="bom-table">
+                <thead>
+                    <tr>
+                        <th>Descripción</th>
+                        <th>Cant.</th>
+                        <th>Unid.</th>
+                    </tr>
+                </thead>
+                <tbody id="bom-body">
+                    <!-- Filas generadas activamente -->
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-actions">
+            <button id="btn-copy-bom" class="action-btn primary">📋 Copiar</button>
+            <button id="btn-download-pdf-bom" class="action-btn"
+                style="background: #D32F2F; color: white; border-color: #EF5350;">📄 Reporte PDF</button>
+            <button id="btn-check-inventory" class="action-btn"
+                style="background: #1A4A8A; color: white; border-color: #2A6ACA;">📦 Verificar
+                Stock</button>
+            <button id="btn-close-bom" class="action-btn">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Projects Modal -->
+<div id="projects-modal" class="hidden">
+    <div class="modal-content" style="min-width: 480px;">
+        <div id="projects-save-view" style="display:none;">
+            <h2>💾 Guardar Proyecto</h2>
+            <div class="save-dialog">
+                <label>Nombre del Proyecto</label>
+                <input type="text" id="input-project-name" placeholder="Ej: Red Planta Tijuana" />
+                <label>Cliente (opcional)</label>
+                <input type="text" id="input-project-client" placeholder="Ej: ACME Corp" />
+            </div>
+            <div class="modal-actions">
+                <button id="btn-confirm-save" class="action-btn primary">💾 Guardar</button>
+                <button id="btn-cancel-save" class="action-btn">Cancelar</button>
+            </div>
+        </div>
+        <div id="projects-list-view" style="display:none;">
+            <h2>📂 Proyectos Guardados</h2>
+            <div style="background: #0F3460; border-radius: 8px; margin: 10px 0;">
+                <ul class="project-list" id="projects-list">
+                    <!-- Generado dinámicamente -->
+                </ul>
+            </div>
+            <div id="projects-empty"
+                style="display:none; text-align:center; padding: 20px; color: #6B7DB3; font-size: 13px;">
+                No hay proyectos guardados aún.
+            </div>
+            <div class="modal-actions">
+                <button id="btn-close-projects" class="action-btn">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Auth Modal -->
+<div id="auth-modal">
+    <div class="auth-container">
+        <div id="login-view">
+            <h2>Bienvenido a DRAW v3.0.1</h2>
+            <p>Inicia sesión para gestionar tus proyectos en la nube.</p>
+            <form class="auth-form" id="login-form" action="javascript:void(0);" onsubmit="event.preventDefault();">
+                <input type="email" class="auth-input" id="login-email" placeholder="Email" required />
+                <input type="password" class="auth-input" id="login-password" placeholder="Contraseña"
+                    required />
+                <button type="submit" class="auth-btn">Iniciar Sesión</button>
+            </form>
+            <div class="auth-switch">
+                ¿No tienes cuenta? <span id="switch-to-register">Regístrate</span>
+            </div>
+        </div>
+
+        <div id="register-view" style="display: none;">
+            <h2>Crear Cuenta</h2>
+            <p>Regístrate para empezar a guardar tus planos.</p>
+            <form class="auth-form" id="register-form" action="javascript:void(0);" onsubmit="event.preventDefault();">
+                <input type="email" class="auth-input" id="register-email" placeholder="Email" required />
+                <input type="password" class="auth-input" id="register-password" placeholder="Contraseña"
+                    required />
+                <button type="submit" class="auth-btn">Registrarse</button>
+            </form>
+            <div class="auth-switch">
+                ¿Ya tienes cuenta? <span id="switch-to-login">Inicia sesión</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dialogo de Configuración de Bajada -->
+<div id="bajada-dialog" class="floating-dialog" style="display: none; position: absolute; background: #1E1E2F; border: 1px solid #4a4a4a; box-shadow: 0 4px 15px rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; z-index: 1000; font-family: 'Segoe UI', sans-serif; min-width: 280px;">
+    <h3 style="margin-top: 0; margin-bottom: 15px; color: #FFF; font-size: 14px; border-bottom: 1px solid #4a4a4a; padding-bottom: 8px;">Configuración de Bajada</h3>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        <label style="color: #bcbcbc; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+            Diámetro de bajada:
+            <select id="bajada-size" style="background: #2D2D44; color: #FFF; border: 1px solid #4FC3F7; padding: 4px; border-radius: 4px; outline: none; width: 120px;">
+                <option value='1"'>1"</option>
+                <option value='3/4"'>3/4"</option>
+            </select>
+        </label>
+        <label style="color: #bcbcbc; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+            Altura de bajada (m):
+            <input type="number" id="bajada-height" value="2.0" step="0.1" min="0.1" style="background: #2D2D44; color: #FFF; border: 1px solid #4FC3F7; padding: 4px; border-radius: 4px; width: 110px; outline: none; text-align: right;">
+        </label>
+        <label style="color: #bcbcbc; font-size: 12px; display: flex; flex-direction: column; gap: 5px;">
+            Terminal Valve (Válvula final):
+            <select id="bajada-valve" style="background: #2D2D44; color: #FFF; border: 1px solid #4FC3F7; padding: 4px; border-radius: 4px; outline: none; width: 100%;">
+                <option value="Valve Drop One Port Male">Valve Drop One Port Male</option>
+                <option value="Valve Drop One Port Female">Valve Drop One Port Female (Wall)</option>
+                <option value="Valve Drop Two Port Female">Valve Drop Two Port Female (Wall)</option>
+                <option value="Angle-Valve Drop Two Port Female">Angle-Valve Drop Two Port Female (Wall)</option>
+                <option value="Ninguna">Ninguna / Solo tubo</option>
+            </select>
+        </label>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+            <button id="btn-cancel-bajada" style="background: #4a4a4a; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Cancelar</button>
+            <button id="btn-confirm-bajada" style="background: #4FC3F7; color: #111; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;">Confirmar</button>
+        </div>
+    </div>
+</div>

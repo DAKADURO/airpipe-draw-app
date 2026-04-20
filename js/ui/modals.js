@@ -2,6 +2,7 @@ import { state, invalidateSnapCache } from '../state.js';
 import { saveProject, getProjects, getProject, deleteProject } from '../api.js';
 import { setStatus } from './tools.js';
 import { syncIsometricUI } from './scene_panel.js';
+import { showToast } from './toast.js';
 
 export function serializeProjectData() {
     return {
@@ -117,7 +118,7 @@ export function setupModals() {
     document.getElementById('btn-confirm-save').onclick = async () => {
         const name = document.getElementById('input-project-name').value.trim();
         const client = document.getElementById('input-project-client').value.trim();
-        if (!name) return alert('Por favor ingresa un nombre para el proyecto.');
+        if (!name) return showToast('Por favor ingresa un nombre para el proyecto.', 'warning');
 
         const projectData = serializeProjectData();
         const btnConfirm = document.getElementById('btn-confirm-save');
@@ -133,7 +134,7 @@ export function setupModals() {
             try {
                 result = JSON.parse(responseText);
             } catch (parseErr) {
-                alert(`Error al guardar: El servidor respondió con estado ${response.status}`);
+                showToast(`Error al guardar: El servidor respondió con estado ${response.status}`, 'error');
                 return;
             }
             if (response.ok) {
@@ -143,10 +144,10 @@ export function setupModals() {
                 projectsModal.classList.add('hidden');
                 setStatus(`Proyecto "${name}" guardado exitosamente.`);
             } else {
-                alert('Error al guardar: ' + (result.error || result.msg || `HTTP ${response.status}`));
+                showToast('Error al guardar: ' + (result.error || result.msg || `HTTP ${response.status}`), 'error');
             }
         } catch (err) {
-            alert('Error de conexión al guardar el proyecto: ' + err.message);
+            showToast('Error de conexión al guardar el proyecto: ' + err.message, 'error');
         } finally {
             btnConfirm.disabled = false;
             btnConfirm.innerText = originalText;
@@ -201,14 +202,14 @@ export function setupModals() {
                 };
             });
         } catch (err) {
-            alert('Error al cargar la lista de proyectos.');
+            showToast('Error al cargar la lista de proyectos.', 'error');
         }
     };
 
     const bomModal = document.getElementById('bom-modal');
     document.getElementById('btn-show-bom').onclick = () => {
         if (!state.bomCalculo) {
-            alert('Primero debes hacer clic en "⚡ Generar Plano" para calcular los materiales de tu diseño.');
+            showToast('Primero debes hacer clic en "⚡ Generar Plano" para calcular los materiales de tu diseño.', 'warning');
             return;
         }
         bomModal.classList.remove('hidden');
