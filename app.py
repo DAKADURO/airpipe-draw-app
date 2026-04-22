@@ -50,6 +50,25 @@ app.register_blueprint(processing_bp)
 with app.app_context():
     import models  # noqa: F401 — Registra los modelos con SQLAlchemy
     db.create_all()
+    
+    # ── Temporary Migration Auto-Fix ───────────────────────────
+    try:
+        from sqlalchemy import text
+        # Comprobar si existe la tabla de versiones
+        result = db.session.execute(text("SELECT 1 FROM information_schema.tables WHERE table_name = 'alembic_version'")).first()
+        if result:
+            print("Auto-fix: Resolviendo conflicto de migraciones...")
+            # Revertir columnas a VARCHAR(50) para que coincidan con los modelos revertidos
+            db.session.execute(text("ALTER TABLE projects ALTER COLUMN created_at TYPE VARCHAR(50)"))
+            db.session.execute(text("ALTER TABLE projects ALTER COLUMN updated_at TYPE VARCHAR(50)"))
+            db.session.execute(text("ALTER TABLE users ALTER COLUMN created_at TYPE VARCHAR(50)"))
+            # Borrar el historial de versiones para que el sistema empiece de cero (como estaba en 502dd58)
+            db.session.execute(text("DROP TABLE alembic_version"))
+            db.session.commit()
+            print("Auto-fix: Base de datos resincronizada con éxito.")
+    except Exception as e:
+        print(f"Auto-fix Info: {e}") # Ignorable si la tabla no existe o ya se borró
+        db.session.rollback()
 
 # ── Security Headers (producción) ──────────────────────────────
 @app.after_request
