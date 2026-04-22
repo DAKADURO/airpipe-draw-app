@@ -27,6 +27,8 @@ export function redraw() {
     } catch (err) {
         console.error("Error en redraw:", err);
     }
+    // Reset dirty flag after successful render
+    state._viewDirty = false;
 }
 
 export function scheduleRedraw() {
@@ -37,4 +39,14 @@ export function scheduleRedraw() {
             redraw();
         });
     }
+}
+
+/**
+ * Mark the viewport as dirty and schedule a redraw.
+ * Call this instead of redraw() from input handlers (pan, zoom, etc.)
+ * to consolidate multiple changes into a single frame.
+ */
+export function markDirtyAndRedraw() {
+    state._viewDirty = true;
+    scheduleRedraw();
 }

@@ -57,6 +57,7 @@ export const state = {
     // UI Cache 
     canvasRect: null,
     _rafPending: false,
+    _viewDirty: true,        // Flag: viewport changed, needs redraw
     _snapPointsCache: null,
 
     // Global Project Info

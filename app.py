@@ -79,6 +79,10 @@ def serve_vite_assets(filename):
 def serve_js(filename):
     return send_from_directory('js', filename)
 
+@app.route("/css/<path:filename>", methods=["GET"])
+def serve_css(filename):
+    return send_from_directory('css', filename)
+
 @app.route("/server_uploads/<path:filename>", methods=["GET"])
 def serve_uploads(filename):
     return send_from_directory('server_uploads', filename)

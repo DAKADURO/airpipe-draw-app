@@ -1,45 +1,20 @@
 import os
 import uuid
 import base64
-import json
 from flask import Blueprint, request, jsonify, make_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from models import Project
+from core.storage import process_project_assets
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/projects')
-
-UPLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'server_uploads', 'backgrounds')
-os.makedirs(UPLOADS_DIR, exist_ok=True)
-
-def procesar_imagenes_base64(data_dict: dict) -> dict:
-    if "bgBase64" in data_dict and data_dict["bgBase64"]:
-        b64_str = data_dict["bgBase64"]
-        if b64_str.startswith("data:image/"):
-            if "," in b64_str:
-                header, encoded = b64_str.split(",", 1)
-                ext = "png"
-                if "jpeg" in header or "jpg" in header: ext = "jpg"
-                elif "webp" in header: ext = "webp"
-                
-                filename = f"bg_{uuid.uuid4().hex[:8]}.{ext}"
-                filepath = os.path.join(UPLOADS_DIR, filename)
-                
-                try:
-                    with open(filepath, "wb") as f:
-                        f.write(base64.b64decode(encoded))
-                    data_dict["bgUrl"] = f"/server_uploads/backgrounds/{filename}"
-                except Exception as e:
-                    print(f"Error saving background image: {e}")
-        del data_dict["bgBase64"]
-    return data_dict
 
 @projects_bp.route("", methods=["GET"])
 @jwt_required()
 def list_projects():
     user_id = int(get_jwt_identity())
     proyectos = Project.query.filter_by(user_id=user_id).order_by(Project.updated_at.desc()).all()
-    res = [{"id": p.id, "name": p.name, "client": p.client, "created_at": p.created_at, "updated_at": p.updated_at} for p in proyectos]
+    res = [{"id": p.id, "name": p.name, "client": p.client, "created_at": p.created_at.isoformat() if p.created_at else None, "updated_at": p.updated_at.isoformat() if p.updated_at else None} for p in proyectos]
     return jsonify(res), 200
 
 @projects_bp.route("", methods=["POST"])
@@ -50,12 +25,12 @@ def create_project():
     if not datos or "name" not in datos or "data" not in datos:
         return jsonify({"error": "Se requiere 'name' y 'data'"}), 400
 
-    procesada = procesar_imagenes_base64(datos["data"])
+    procesada = process_project_assets(datos["data"])
 
     nuevo_proyecto = Project(
         name=datos["name"],
         client=datos.get("client", ""),
-        data=json.dumps(procesada),
+        data=procesada,
         user_id=user_id
     )
     db.session.add(nuevo_proyecto)
@@ -78,10 +53,10 @@ def get_project(project_id):
         "id": project.id,
         "name": project.name,
         "client": project.client,
-        "data": json.loads(project.data),
+        "data": project.data,
         "user_id": project.user_id,
-        "created_at": project.created_at,
-        "updated_at": project.updated_at
+        "created_at": project.created_at.isoformat() if project.created_at else None,
+        "updated_at": project.updated_at.isoformat() if project.updated_at else None
     }), 200
 
 @projects_bp.route("/<int:project_id>", methods=["PUT"])
@@ -99,11 +74,11 @@ def update_project(project_id):
     if project.user_id != user_id:
         return jsonify({"error": "No tienes permiso para modificar este proyecto"}), 403
 
-    procesada = procesar_imagenes_base64(datos["data"])
+    procesada = process_project_assets(datos["data"])
     
     project.name = datos.get("name", project.name)
     project.client = datos.get("client", project.client)
-    project.data = json.dumps(procesada)
+    project.data = procesada
 
     db.session.commit()
     return jsonify({"message": "Proyecto actualizado exitosamente"}), 200
@@ -141,7 +116,7 @@ def export_pdf(project_id):
         datos_post = request.get_json(silent=True) or {}
         imagen_b64 = datos_post.get("imagen")
         
-        project_data = json.loads(project.data)
+        project_data = project.data
         print(f"DEBUG PDF: project_data keys: {list(project_data.keys())}")
         
         from core.rectificador import procesar_plano

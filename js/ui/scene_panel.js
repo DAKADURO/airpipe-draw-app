@@ -1,11 +1,13 @@
 import { state, invalidateSnapCache } from '../state.js';
 import { setStatus } from './tools.js';
+import { showToast } from './toast.js';
 
 export function cargarImagenFondo(base64Data) {
     const bgControls = document.getElementById('bg-controls');
     const img = new Image();
     img.onload = () => {
         state.bgImageObj = img;
+        state.bgBase64 = base64Data; // Save base64 for persistence
         if (bgControls) bgControls.style.display = 'block';
         setStatus('Plano de fondo cargado.');
         document.getElementById('bg-opacity').value = state.bgOpacity * 100;
@@ -42,11 +44,11 @@ export async function cargarDXFFondo(file) {
             import('../drawing.js').then(d => d.redraw());
             setStatus(`Dibujo DXF cargado: ${res.count} líneas.`);
         } else {
-            alert("Error al procesar el DXF: " + (res.error || "Formato no soportado"));
+            showToast("Error al procesar el DXF: " + (res.error || "Formato no soportado"), 'error');
         }
     } catch (err) {
         console.error(err);
-        alert("Error de conexión al servidor para procesar DXF.");
+        showToast("Error de conexión al servidor para procesar DXF.", 'error');
     }
 }
 
