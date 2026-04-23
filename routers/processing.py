@@ -1,7 +1,7 @@
 import base64
 from flask import Blueprint, request, jsonify
 
-processing_bp = Blueprint('processing', __name__)
+processing_bp = Blueprint('processing', __name__, url_prefix='/processing')
 
 @processing_bp.route("/procesar", methods=["POST"])
 def procesar():
