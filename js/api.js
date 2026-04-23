@@ -60,7 +60,7 @@ export async function register(email, password) {
 
 // Processing
 export async function procesarPlano(payload) {
-    const resp = await fetch(`${API_BASE}/procesar`, {
+    const resp = await fetch(`${API_BASE}/processing/procesar`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(payload)
@@ -112,7 +112,7 @@ export async function downloadPDF(projectId, bgBase64 = null) {
 }
 
 export async function downloadPDFDirect(plano, bgBase64 = null, nombre = "Plano Temporal", cliente = "S/C") {
-    const resp = await fetch(`${API_BASE}/procesar-pdf`, {
+    const resp = await fetch(`${API_BASE}/processing/procesar-pdf`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ 
