@@ -57,60 +57,102 @@ export function toScreen(worldX, worldY, worldZ = 0) {
     };
 }
 
-export function getSnapPoints() {
-    if (state._snapPointsCache !== null) return state._snapPointsCache;
-    const puntos = [];
+let _snapGridCache = null;
+let _snapGridCellSize = 500; // 5 metros por celda
+let _snapHistorialCache = null;
+
+export function invalidateSnapCache() {
+    _snapGridCache = null;
+    _snapHistorialCache = null;
+    state._snapPointsCache = null; // Legacy
+}
+
+function buildSnapGrid() {
+    const grid = new Map();
+    const historial = [];
+    
+    function addPt(p) {
+        const cx = Math.floor(p.x / _snapGridCellSize);
+        const cy = Math.floor(p.y / _snapGridCellSize);
+        const key = `${cx},${cy}`;
+        if (!grid.has(key)) grid.set(key, []);
+        grid.get(key).push(p);
+    }
+
     for (const accion of state.historial) {
         if (accion.tipo === 'linea') {
             const { x1, y1, x2, y2 } = accion.datos;
             const z1 = accion.datos.z1 || 0;
             const z2 = accion.datos.z2 || 0;
-            puntos.push({ x: x1, y: y1, z: z1, tipo: 'extremo' });
-            puntos.push({ x: x2, y: y2, z: z2, tipo: 'extremo' });
-            puntos.push({ x: (x1 + x2) / 2, y: (y1 + y2) / 2, z: (z1 + z2) / 2, tipo: 'medio' });
+            const p1 = { x: x1, y: y1, z: z1, tipo: 'extremo' };
+            const p2 = { x: x2, y: y2, z: z2, tipo: 'extremo' };
+            const pM = { x: (x1 + x2) / 2, y: (y1 + y2) / 2, z: (z1 + z2) / 2, tipo: 'medio' };
+            addPt(p1); addPt(p2); addPt(pM);
+            historial.push(p1, p2, pM);
         } else if (accion.tipo === 'nodo') {
-            puntos.push({ x: accion.datos.x, y: accion.datos.y, z: accion.datos.z || 0, tipo: 'extremo' });
+            const p = { x: accion.datos.x, y: accion.datos.y, z: accion.datos.z || 0, tipo: 'extremo' };
+            addPt(p); historial.push(p);
         } else if (accion.tipo === 'cota') {
             const { x1, y1, x2, y2 } = accion.datos;
             const z1 = accion.datos.z1 || 0;
             const z2 = accion.datos.z2 || 0;
-            puntos.push({ x: x1, y: y1, z: z1, tipo: 'extremo' });
-            puntos.push({ x: x2, y: y2, z: z2, tipo: 'extremo' });
-            puntos.push({ x: (x1 + x2) / 2, y: (y1 + y2) / 2, z: (z1 + z2) / 2, tipo: 'medio' });
+            const p1 = { x: x1, y: y1, z: z1, tipo: 'extremo' };
+            const p2 = { x: x2, y: y2, z: z2, tipo: 'extremo' };
+            const pM = { x: (x1 + x2) / 2, y: (y1 + y2) / 2, z: (z1 + z2) / 2, tipo: 'medio' };
+            addPt(p1); addPt(p2); addPt(pM);
+            historial.push(p1, p2, pM);
         }
     }
 
-    // Añadir puntos de las líneas de fondo (DXF)
     if (state.bgLines && state.bgLines.length > 0) {
         for (const l of state.bgLines) {
+            if (l.type === 'text') continue;
             const sx = l.x1 * state.bgScale;
             const sy = l.y1 * state.bgScale;
             const ex = l.x2 * state.bgScale;
             const ey = l.y2 * state.bgScale;
-            puntos.push({ x: sx, y: sy, z: 0, tipo: 'extremo' });
-            puntos.push({ x: ex, y: ey, z: 0, tipo: 'extremo' });
+            addPt({ x: sx, y: sy, z: 0, tipo: 'extremo' });
+            addPt({ x: ex, y: ey, z: 0, tipo: 'extremo' });
         }
     }
 
-    state._snapPointsCache = puntos;
-    return puntos;
+    _snapGridCache = grid;
+    _snapHistorialCache = historial;
+    state._snapPointsCache = true;
+}
+
+export function getHistorialSnapPoints() {
+    if (_snapHistorialCache === null) buildSnapGrid();
+    return _snapHistorialCache;
 }
 
 export function getSnapPoint(x, y, z = 0) {
-    const puntos = getSnapPoints(); 
+    if (_snapGridCache === null) buildSnapGrid();
+    
     const currentSnapRadius = SNAP_RADIUS / state.viewState.scale;
+    // Buscamos en celdas cercanas
+    const minCx = Math.floor((x - currentSnapRadius) / _snapGridCellSize);
+    const maxCx = Math.floor((x + currentSnapRadius) / _snapGridCellSize);
+    const minCy = Math.floor((y - currentSnapRadius) / _snapGridCellSize);
+    const maxCy = Math.floor((y + currentSnapRadius) / _snapGridCellSize);
+
     let closest = null;
     let minDist = Infinity;
+    const mouseP = toScreen(x, y, z);
 
-    for (const p of puntos) {
-        // En isométrico, la distancia visual (2D proyectada) es más útil para el snap
-        const worldP = toScreen(p.x, p.y, p.z);
-        const mouseP = toScreen(x, y, z);
-        const dist = Math.hypot(worldP.x - mouseP.x, worldP.y - mouseP.y) / state.viewState.scale;
-        
-        if (dist <= currentSnapRadius && dist < minDist) {
-            minDist = dist;
-            closest = p;
+    for (let cx = minCx; cx <= maxCx; cx++) {
+        for (let cy = minCy; cy <= maxCy; cy++) {
+            const cell = _snapGridCache.get(`${cx},${cy}`);
+            if (!cell) continue;
+            
+            for (const p of cell) {
+                const worldP = toScreen(p.x, p.y, p.z);
+                const dist = Math.hypot(worldP.x - mouseP.x, worldP.y - mouseP.y) / state.viewState.scale;
+                if (dist <= currentSnapRadius && dist < minDist) {
+                    minDist = dist;
+                    closest = p;
+                }
+            }
         }
     }
     return closest;
@@ -187,7 +229,7 @@ export function getAngleSnapPoint(x1, y1, x2, y2, z1) {
 }
 
 export function getSmartSnap(mouseX, mouseY, outGuides, overrideZ = null) {
-    const puntos = getSnapPoints(); 
+    const puntos = getHistorialSnapPoints(); 
     const currentGuideTolerance = SNAP_GUIDE_TOLERANCE / state.viewState.scale;
     const isIso = state.viewState.isIsometric;
 

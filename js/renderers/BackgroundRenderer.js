@@ -1,6 +1,11 @@
 import { COLOR_GRID_CAD, COLOR_GRID_SUB_CAD, PASO_GRID, PIXELS_POR_METRO, COLOR_FONDO_CAD } from '../config.js';
 import { toWorld, projectIso } from '../math.js';
 
+let cachedBgLines = null;
+let cachedIsoState = null;
+let cachedScale = null;
+let cachedPath2D = null;
+
 export function drawBackground(ctx, canvas, state) {
     // Fondo AutoCAD (Antigris)
     ctx.save();
@@ -29,26 +34,37 @@ export function drawBackground(ctx, canvas, state) {
         ctx.globalAlpha = state.bgOpacity;
         ctx.lineWidth = 1 / state.viewState.scale;
         
-        ctx.beginPath();
-        for (const l of state.bgLines) {
-            if (l.type === 'text') continue;
-            const x1 = l.x1 * state.bgScale;
-            const y1 = l.y1 * state.bgScale;
-            const x2 = l.x2 * state.bgScale;
-            const y2 = l.y2 * state.bgScale;
+        // --- Optimización: Caché Path2D ---
+        if (cachedBgLines !== state.bgLines || 
+            cachedIsoState !== state.viewState.isIsometric || 
+            cachedScale !== state.bgScale) {
             
-            let p1x = x1, p1y = y1, p2x = x2, p2y = y2;
-            if (state.viewState.isIsometric) {
-                const p1 = projectIso(x1, y1, 0);
-                p1x = p1.x; p1y = p1.y;
-                const p2 = projectIso(x2, y2, 0);
-                p2x = p2.x; p2y = p2.y;
+            cachedBgLines = state.bgLines;
+            cachedIsoState = state.viewState.isIsometric;
+            cachedScale = state.bgScale;
+            cachedPath2D = new Path2D();
+
+            for (const l of state.bgLines) {
+                if (l.type === 'text') continue;
+                const x1 = l.x1 * state.bgScale;
+                const y1 = l.y1 * state.bgScale;
+                const x2 = l.x2 * state.bgScale;
+                const y2 = l.y2 * state.bgScale;
+                
+                let p1x = x1, p1y = y1, p2x = x2, p2y = y2;
+                if (state.viewState.isIsometric) {
+                    const p1 = projectIso(x1, y1, 0);
+                    p1x = p1.x; p1y = p1.y;
+                    const p2 = projectIso(x2, y2, 0);
+                    p2x = p2.x; p2y = p2.y;
+                }
+                
+                cachedPath2D.moveTo(p1x, p1y);
+                cachedPath2D.lineTo(p2x, p2y);
             }
-            
-            ctx.moveTo(p1x, p1y);
-            ctx.lineTo(p2x, p2y);
         }
-        ctx.stroke();
+        
+        ctx.stroke(cachedPath2D);
 
         // Renderizar textos
         ctx.textAlign = 'left';
