@@ -17,6 +17,44 @@ def _angulo_linea(x1, y1, x2, y2):
     ang = math.degrees(math.atan2(dy, dx))
     return ang % 360
 
+from core.dimensionador import DIAMETRO_A_VALOR
+
+def obtener_ruta_transicion(from_d: str, to_d: str) -> list[tuple[str, str]]:
+    """Usa BFS para encontrar la ruta más corta de transiciones de from_d a to_d."""
+    if from_d == to_d or not from_d or not to_d: return []
+    
+    graph = {
+        '1"': ['3/4"'],
+        '1 1/2"': ['1"'],
+        '2"': ['1"', '1 1/2"'],
+        '2 1/2"': ['1 1/2"', '2"'],
+        '3"': ['2"', '2 1/2"'],
+        '4"': ['2 1/2"', '3"'],
+        '6"': ['3"', '4"'],
+        '8"': ['6"'],
+        '10"': ['8"']
+    }
+    
+    queue = [[from_d]]
+    visited = {from_d}
+    
+    while queue:
+        path = queue.pop(0)
+        node = path[-1]
+        
+        if node == to_d:
+            return [(path[i], path[i+1]) for i in range(len(path)-1)]
+            
+        for neighbor in graph.get(node, []):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                new_path = list(path)
+                new_path.append(neighbor)
+                queue.append(new_path)
+                
+    # Fallback si no hay ruta en el grafo (no debería ocurrir con el grafo completo)
+    return [(from_d, to_d)]
+
 def _puntos_iguales(x1, y1, x2, y2, tol=1.0):
     return math.hypot(x1 - x2, y1 - y2) < tol
 
@@ -87,6 +125,25 @@ def detectar_piezas(lineas: list[dict], nodos_hardware: list[dict] = None, is_is
             ang = math.degrees(math.atan2(v[1], v[0])) % 360
             angulos_xy.append(ang)
 
+        diametros = data["diametros"]
+        d_max = max(diametros, key=lambda d: DIAMETRO_A_VALOR.get(d, 0)) if diametros else None
+        
+        def generar_transiciones(d_mayor, d_menor):
+            rutas = obtener_ruta_transicion(d_mayor, d_menor)
+            for (from_d, to_d) in rutas:
+                piezas.append({
+                    "tipo": "Transicion",
+                    "x": x, "y": y, "z": z,
+                    "diametro_in": from_d,
+                    "diametro_out": to_d,
+                    "angulos": angulos_xy
+                })
+
+        # Evaluar y emitir transiciones para las ramas menores
+        for d in diametros:
+            if d and d_max and DIAMETRO_A_VALOR.get(d, 0) < DIAMETRO_A_VALOR.get(d_max, 0):
+                generar_transiciones(d_max, d)
+
         if grado == 1:
             es_equipo = False
             for nh in nodos_hardware:
@@ -102,7 +159,7 @@ def detectar_piezas(lineas: list[dict], nodos_hardware: list[dict] = None, is_is
                     "tipo": "Tapon",
                     "x": x, "y": y, "z": z,
                     "angulos": angulos_xy,
-                    "diametro": data["diametros"][0] if data["diametros"] else None
+                    "diametro": d_max
                 })
 
         elif grado == 2:
@@ -110,33 +167,34 @@ def detectar_piezas(lineas: list[dict], nodos_hardware: list[dict] = None, is_is
             dot = max(-1.0, min(1.0, v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]))
             angle_3d = math.degrees(math.acos(dot))
             
-            # DEBUG
-            print(f"DEBUG PIEZA: Nodo ({x}, {y}, {z}), Angle3D: {angle_3d:.2f}")
+            d1, d2 = diametros[0], diametros[1]
+            es_recto = abs(angle_3d - 180) <= 5.0
 
-            if abs(angle_3d - 180) <= 5.0:
-                piezas.append({
-                    "tipo": "Union",
-                    "x": x, "y": y, "z": z, "angulos": angulos_xy,
-                    "diametro": data["diametros"][0] if data["diametros"] else None
-                })
+            if es_recto:
+                # Si los diámetros son distintos, ya emitimos transiciones. NO emitimos Unión.
+                if d1 == d2:
+                    piezas.append({
+                        "tipo": "Union",
+                        "x": x, "y": y, "z": z, "angulos": angulos_xy,
+                        "diametro": d_max
+                    })
             elif abs(angle_3d - 90) <= 15.0: # Umbral más amplio
                 piezas.append({
                     "tipo": "Codo",
                     "x": x, "y": y, "z": z, "angulos": angulos_xy,
-                    "diametro": data["diametros"][0] if data["diametros"] else None
+                    "diametro": d_max
                 })
             elif abs(angle_3d - 135) <= 15.0 or abs(angle_3d - 45) <= 15.0:
-                tipo = "Codo 45"
                 piezas.append({
-                    "tipo": tipo,
+                    "tipo": "Codo 45",
                     "x": x, "y": y, "z": z, "angulos": angulos_xy,
-                    "diametro": data["diametros"][0] if data["diametros"] else None
+                    "diametro": d_max
                 })
             else:
                 piezas.append({
                     "tipo": "Codo",
                     "x": x, "y": y, "z": z, "angulos": angulos_xy,
-                    "diametro": data["diametros"][0] if data["diametros"] else None
+                    "diametro": d_max
                 })
         
         elif grado == 3:
@@ -152,15 +210,11 @@ def detectar_piezas(lineas: list[dict], nodos_hardware: list[dict] = None, is_is
 
             tipo_te = "Te"
             if tiene_180:
-                # Si hay una línea recta (180), ver el ángulo con la rama (que será ~90 o ~45/135)
                 ang_rama = next((a for a in angs_entre if abs(a - 180) > 10.0), 90)
                 
-                # REGLA ESPECIAL PARA AIRpipe: Si la rama es VERTICAL y el tronco es HORIZONTAL,
-                # AIRpipe no tiene "Tes 3D", por lo que se usa una Te normal + un Codo.
                 tiene_rama_vertical = False
                 for v in vectores:
                     if abs(v[2]) > 0.9: # Es vertical
-                        # Verificar si los otros dos son horizontales (tronco plano)
                         otros = [vec for vec in vectores if vec is not v]
                         if all(abs(o[2]) < 0.1 for o in otros):
                             tiene_rama_vertical = True
@@ -176,11 +230,10 @@ def detectar_piezas(lineas: list[dict], nodos_hardware: list[dict] = None, is_is
             piezas.append({
                 "tipo": tipo_te,
                 "x": x, "y": y, "z": z, "angulos": angulos_xy,
-                "diametro": data["diametros"][0] if data["diametros"] else None
+                "diametro": d_max
             })
             
         elif grado == 4:
-            # Simplificado: Si hay al menos un par a 180, lo consideramos Cruz
             tiene_180 = False
             for i in range(4):
                 for j in range(i + 1, 4):
@@ -192,12 +245,8 @@ def detectar_piezas(lineas: list[dict], nodos_hardware: list[dict] = None, is_is
                 piezas.append({
                     "tipo": "Cruz",
                     "x": x, "y": y, "z": z, "angulos": angulos_xy,
-                    "diametro": data["diametros"][0] if data["diametros"] else None
+                    "diametro": d_max
                 })
-            else:
-                 # Si no es ortogonal, no es una "Cruz" estándar de inventario
-                 # Podríamos dejarlo sin etiqueta o usar una genérica
-                 pass
 
     # ... aplicar diametro a las demas piezas arriba ...
 

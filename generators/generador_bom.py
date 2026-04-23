@@ -111,11 +111,36 @@ def generar_bom(lineas: list[dict], piezas: list[dict], valvulas: list[dict], ba
                 "unidad": "uds"
             })
 
+    TRANSICIONES_AIRPIPE = {
+        ('1"', '3/4"'): '2121',
+        ('1 1/2"', '1"'): '4221',
+        ('2"', '1"'): '5221',
+        ('2"', '1 1/2"'): '5421',
+        ('2 1/2"', '1 1/2"'): '6421',
+        ('2 1/2"', '2"'): '6521',
+        ('3"', '2"'): '7521',
+        ('3"', '2 1/2"'): '7621',
+        ('4"', '2 1/2"'): '8621',
+        ('4"', '3"'): '8721',
+        ('6"', '3"'): '9721',
+        ('6"', '4"'): '9821',
+        ('8"', '6"'): 'a921',
+        ('10"', '8"'): 'ma21'
+    }
+
     # --- 2. Agrupar Accesorios ---
     for P in piezas:
         t = P.get("tipo", "Desconocido")
         d = P.get("diametro", "N/A")
         
+        if t == "Transicion":
+            d_in = P.get("diametro_in")
+            d_out = P.get("diametro_out")
+            pn = TRANSICIONES_AIRPIPE.get((d_in, d_out), "GENÉRICA")
+            key = (f"Transición Reductora (PN: {pn})", f"{d_in} a {d_out}")
+            acc_map[key] = acc_map.get(key, 0) + 1
+            continue
+
         if t == "Te + Codo":
             k_te = ("Te Igual (90°)", d)
             acc_map[k_te] = acc_map.get(k_te, 0) + 1

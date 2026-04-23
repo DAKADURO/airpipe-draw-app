@@ -33,8 +33,10 @@ def procesar_plano(plano: dict) -> dict:
     is_isometric = plano.get("is_isometric", False)
 
     # (1-2) Sanitización Geométrica Inicial
+    from .geometry_cleaner import eliminar_superposiciones
     lineas = filtrar_ruido(lineas)
     lineas = rectificar_ejes(lineas)
+    lineas = eliminar_superposiciones(lineas)
 
     # (3) Unión de Nodos Topológicos post-rectificación (Join messy endpoints)
     lineas, nodos = fusionar_intersecciones(lineas, nodos)
