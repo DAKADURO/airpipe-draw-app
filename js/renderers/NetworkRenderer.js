@@ -293,7 +293,7 @@ export function drawLinea(ctx, x1, y1, z1 = 0, x2, y2, z2 = 0, preview = false, 
 
     ctx.save();
     ctx.strokeStyle = preview ? COLOR_LINEA_PREV : (color || COLOR_LINEA);
-    ctx.lineWidth = GROSOR_LINEA * state.viewState.scale;
+    ctx.lineWidth = Math.max(GROSOR_LINEA * state.viewState.scale, 4.0);
     ctx.lineCap = 'round';
     if (preview) ctx.setLineDash([6, 4]);
     ctx.beginPath();
