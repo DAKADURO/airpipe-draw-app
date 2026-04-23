@@ -7,6 +7,7 @@ def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
     """
     Convierte un archivo DXF en una lista de líneas {x1, y1, x2, y2} 
     para ser usadas como fondo en el canvas.
+    Aplica escala para que 1 unidad de AutoCAD = 1 metro = 100 píxeles.
     """
     try:
         # Guardar en archivo temporal para que ezdxf maneje encodings y formato binario
@@ -19,6 +20,22 @@ def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
         finally:
             os.unlink(tmp_path)
 
+        # --- Manejo de Unidades y Escala ---
+        # $INSUNITS: 1=Inches, 4=Millimeters, 5=Centimeters, 6=Meters
+        insunits = doc.header.get('$INSUNITS', 0)
+        factors = {
+            1: 0.0254,   # Pulgadas
+            2: 0.3048,   # Pies
+            4: 0.001,    # Milímetros
+            5: 0.01,     # Centímetros
+            6: 1.0,      # Metros
+        }
+        unit_to_meter = factors.get(insunits, 1.0)
+        
+        # DRAW 1.0 usa 100 píxeles por metro en el canvas (World Units = Pixels)
+        PIXELS_PER_METER = 100
+        SCALE = unit_to_meter * PIXELS_PER_METER
+
         msp = doc.modelspace()
         lineas = []
 
@@ -27,26 +44,26 @@ def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
             
             if dxftype == 'LINE':
                 lineas.append({
-                    'x1': round(entity.dxf.start.x, 3),
-                    'y1': round(entity.dxf.start.y, 3),
-                    'x2': round(entity.dxf.end.x, 3),
-                    'y2': round(entity.dxf.end.y, 3)
+                    'x1': round(entity.dxf.start.x * SCALE, 3),
+                    'y1': round(entity.dxf.start.y * SCALE, 3),
+                    'x2': round(entity.dxf.end.x * SCALE, 3),
+                    'y2': round(entity.dxf.end.y * SCALE, 3)
                 })
             elif dxftype in ('LWPOLYLINE', 'POLYLINE'):
                 pts = list(entity.get_points('xy'))
                 for i in range(len(pts) - 1):
                     lineas.append({
-                        'x1': round(pts[i][0], 3),
-                        'y1': round(pts[i][1], 3),
-                        'x2': round(pts[i+1][0], 3),
-                        'y2': round(pts[i+1][1], 3)
+                        'x1': round(pts[i][0] * SCALE, 3),
+                        'y1': round(pts[i][1] * SCALE, 3),
+                        'x2': round(pts[i+1][0] * SCALE, 3),
+                        'y2': round(pts[i+1][1] * SCALE, 3)
                     })
                 if entity.is_closed and len(pts) > 2:
                     lineas.append({
-                        'x1': round(pts[-1][0], 3),
-                        'y1': round(pts[-1][1], 3),
-                        'x2': round(pts[0][0], 3),
-                        'y2': round(pts[0][1], 3)
+                        'x1': round(pts[-1][0] * SCALE, 3),
+                        'y1': round(pts[-1][1] * SCALE, 3),
+                        'x2': round(pts[0][0] * SCALE, 3),
+                        'y2': round(pts[0][1] * SCALE, 3)
                     })
             elif dxftype == 'INSERT':
                 try:
@@ -60,10 +77,10 @@ def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
                     pts = list(p.flattening(distance=0.1))
                     for i in range(len(pts) - 1):
                         lineas.append({
-                            'x1': round(pts[i].x, 3),
-                            'y1': round(pts[i].y, 3),
-                            'x2': round(pts[i+1].x, 3),
-                            'y2': round(pts[i+1].y, 3)
+                            'x1': round(pts[i].x * SCALE, 3),
+                            'y1': round(pts[i].y * SCALE, 3),
+                            'x2': round(pts[i+1].x * SCALE, 3),
+                            'y2': round(pts[i+1].y * SCALE, 3)
                         })
                 except Exception:
                     pass
