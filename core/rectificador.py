@@ -92,5 +92,7 @@ def procesar_plano(plano: dict) -> dict:
         "caudal_scfm": caudal_scfm,
         "tipo_red": tipo_red,
         "is_isometric": is_isometric,
+        "bgLines": plano.get("bgLines", []),
+        "bgScale": plano.get("bgScale", 1.0),
         "bom": bom
     }
