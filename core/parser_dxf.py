@@ -1,5 +1,7 @@
 import ezdxf
-import io
+import ezdxf.path
+import tempfile
+import os
 
 def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
     """
@@ -7,32 +9,30 @@ def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
     para ser usadas como fondo en el canvas.
     """
     try:
-        # Leer el contenido binario del DXF
-        stream = io.BytesIO(dxf_content)
-        # Intentar cargar con diferentes encodings si falla el default
+        # Guardar en archivo temporal para que ezdxf maneje encodings y formato binario
+        with tempfile.NamedTemporaryFile(suffix='.dxf', delete=False) as tmp:
+            tmp.write(dxf_content)
+            tmp_path = tmp.name
+
         try:
-            doc = ezdxf.read(stream)
-        except ezdxf.DXFError:
-            stream.seek(0)
-            doc = ezdxf.read(stream, encoding='latin-1')
-            
+            doc = ezdxf.readfile(tmp_path)
+        finally:
+            os.unlink(tmp_path)
+
         msp = doc.modelspace()
         lineas = []
-        
-        # Consultamos líneas y polilíneas ligeras
-        for entity in msp.query('LINE LWPOLYLINE POLYLINE'):
-            # Saltamos capas que suelen ser de anotaciones si queremos (opcional)
-            # layer = entity.dxf.layer.upper()
+
+        def extract_lines_from_entity(entity):
+            dxftype = entity.dxftype()
             
-            if entity.dxftype() == 'LINE':
+            if dxftype == 'LINE':
                 lineas.append({
                     'x1': round(entity.dxf.start.x, 3),
                     'y1': round(entity.dxf.start.y, 3),
                     'x2': round(entity.dxf.end.x, 3),
                     'y2': round(entity.dxf.end.y, 3)
                 })
-            elif entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
-                # Expandir polilínea en segmentos de línea individuales
+            elif dxftype in ('LWPOLYLINE', 'POLYLINE'):
                 pts = list(entity.get_points('xy'))
                 for i in range(len(pts) - 1):
                     lineas.append({
@@ -41,7 +41,6 @@ def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
                         'x2': round(pts[i+1][0], 3),
                         'y2': round(pts[i+1][1], 3)
                     })
-                # Si está cerrada, añadir segmento final
                 if entity.is_closed and len(pts) > 2:
                     lineas.append({
                         'x1': round(pts[-1][0], 3),
@@ -49,7 +48,30 @@ def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
                         'x2': round(pts[0][0], 3),
                         'y2': round(pts[0][1], 3)
                     })
-        
+            elif dxftype == 'INSERT':
+                try:
+                    for v_ent in entity.virtual_entities():
+                        extract_lines_from_entity(v_ent)
+                except Exception:
+                    pass
+            elif dxftype in ('ARC', 'CIRCLE', 'ELLIPSE', 'SPLINE'):
+                try:
+                    p = ezdxf.path.make_path(entity)
+                    pts = list(p.flattening(distance=0.1))
+                    for i in range(len(pts) - 1):
+                        lineas.append({
+                            'x1': round(pts[i].x, 3),
+                            'y1': round(pts[i].y, 3),
+                            'x2': round(pts[i+1].x, 3),
+                            'y2': round(pts[i+1].y, 3)
+                        })
+                except Exception:
+                    pass
+
+        # Extraer todas las entidades soportadas
+        for entity in msp:
+            extract_lines_from_entity(entity)
+
         # --- Normalización básica ---
         if not lineas:
             return []
@@ -59,17 +81,12 @@ def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
         ys = [l['y1'] for l in lineas] + [l['y2'] for l in lineas]
         min_x, min_y = min(xs), min(ys)
         
-        # Desplazar al origen (0,0) para que sea fácil de manejar en el canvas
+        # Desplazar al origen (0,0)
         for l in lineas:
             l['x1'] -= min_x
             l['y1'] -= min_y
             l['x2'] -= min_x
             l['y2'] -= min_y
-            
-            # Invertir Y (DXF es Y-arriba, Canvas es Y-abajo)
-            # Nota: Al normalizar al origen, simplemente invertimos el signo 
-            # de la coordenada relativa si queremos, o manejamos la inversión en el front.
-            # Mejor dejarlo positivo para el front.
             
         return lineas
         
