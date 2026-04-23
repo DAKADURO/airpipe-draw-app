@@ -29,6 +29,8 @@ def procesar():
             "caudal_scfm": req.caudal_scfm or 0,
             "tipo_red":    req.tipo_red or "lineal",
             "is_isometric": req.is_isometric or False,
+            "bgLines": req.bgLines or [],
+            "bgScale": req.bgScale or 1.0
         }
 
         from core.rectificador import procesar_plano

@@ -35,6 +35,35 @@ def generar_dxf(plano: dict) -> str:
         doc.layers.new(name='DIAMETROS', dxfattribs={'color': 3})
     if 'PIEZAS' not in doc.layers:
         doc.layers.new(name='PIEZAS', dxfattribs={'color': 2})
+    if 'FONDO' not in doc.layers:
+        doc.layers.new(name='FONDO', dxfattribs={'color': 8}) # Gris
+
+    # Dibujar fondo DXF
+    bg_lines = plano.get('bgLines', [])
+    bg_scale = plano.get('bgScale', 1.0)
+    for l in bg_lines:
+        is_text = l.get('type') == 'text'
+        if is_text:
+            x, y, h = l.get('x', 0) * bg_scale, l.get('y', 0) * bg_scale, l.get('h', 0) * bg_scale
+            tx, ty = tr(x, y, 0)
+            text_str = l.get('text', '')
+            msp.add_text(
+                text_str,
+                dxfattribs={
+                    'layer': 'FONDO',
+                    'height': h * SCALE_FACTOR
+                }
+            ).set_placement((tx * SCALE_FACTOR, -ty * SCALE_FACTOR))
+        else:
+            x1, y1 = l.get('x1', 0) * bg_scale, l.get('y1', 0) * bg_scale
+            x2, y2 = l.get('x2', 0) * bg_scale, l.get('y2', 0) * bg_scale
+            tx1, ty1 = tr(x1, y1, 0)
+            tx2, ty2 = tr(x2, y2, 0)
+            msp.add_line(
+                (tx1 * SCALE_FACTOR, -ty1 * SCALE_FACTOR),
+                (tx2 * SCALE_FACTOR, -ty2 * SCALE_FACTOR),
+                dxfattribs={'layer': 'FONDO'}
+            )
 
     # Dibujar tuberías
     lineas = plano.get('lineas', [])

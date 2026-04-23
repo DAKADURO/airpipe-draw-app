@@ -16,7 +16,9 @@ export function setupExports(canvas) {
             notas: state.historial.filter(a => a.tipo === 'nota').map(a => a.datos),
             tipo_red: document.getElementById('select-tipo-red').value || 'lineal',
             caudal_scfm: parseFloat(document.getElementById('input-caudal').value) || 0,
-            is_isometric: state.viewState.isIsometric || false
+            is_isometric: state.viewState.isIsometric || false,
+            bgLines: state.bgLines || [],
+            bgScale: state.bgScale || 1.0
         };
 
         setStatus('Generando plano, por favor espera...');
