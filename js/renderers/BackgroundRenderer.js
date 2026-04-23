@@ -25,10 +25,13 @@ export function drawBackground(ctx, canvas, state) {
     if (state.bgLines && state.bgLines.length > 0) {
         ctx.save();
         ctx.strokeStyle = '#607D8B';
+        ctx.fillStyle = '#607D8B';
         ctx.globalAlpha = state.bgOpacity;
         ctx.lineWidth = 1 / state.viewState.scale;
+        
         ctx.beginPath();
         for (const l of state.bgLines) {
+            if (l.type === 'text') continue;
             const x1 = l.x1 * state.bgScale;
             const y1 = l.y1 * state.bgScale;
             const x2 = l.x2 * state.bgScale;
@@ -46,6 +49,29 @@ export function drawBackground(ctx, canvas, state) {
             ctx.lineTo(p2x, p2y);
         }
         ctx.stroke();
+
+        // Renderizar textos
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        for (const l of state.bgLines) {
+            if (l.type === 'text') {
+                const x = l.x * state.bgScale;
+                const y = l.y * state.bgScale;
+                const h = l.h * state.bgScale;
+                
+                let pX = x, pY = y;
+                if (state.viewState.isIsometric) {
+                    const p = projectIso(x, y, 0);
+                    pX = p.x; pY = p.y;
+                }
+                
+                // Evitar fuentes demasiado pequeñas
+                const fontSize = Math.max(h, 0.1); 
+                ctx.font = `${fontSize}px Arial, sans-serif`;
+                ctx.fillText(l.text, pX, pY);
+            }
+        }
+        
         ctx.restore();
     }
     ctx.restore();

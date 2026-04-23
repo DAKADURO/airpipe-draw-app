@@ -105,6 +105,24 @@ def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
                         })
                 except Exception:
                     pass
+            elif dxftype in ('TEXT', 'MTEXT'):
+                try:
+                    text_str = entity.dxf.text if dxftype == 'TEXT' else entity.text
+                    if text_str:
+                        # MTEXT sometimes has complex formatting, we just take raw text or simplifed
+                        # ezdxf allows entity.text for MTEXT which gives the plain text
+                        h = getattr(entity.dxf, 'height', 0.2)
+                        # The insert point is the location
+                        insert = entity.dxf.insert
+                        lineas.append({
+                            'type': 'text',
+                            'text': str(text_str),
+                            'x': round(insert.x * SCALE, 3),
+                            'y': round(insert.y * SCALE, 3),
+                            'h': round(h * SCALE, 3)
+                        })
+                except Exception:
+                    pass
 
         for entity in msp:
             extract_lines_from_entity(entity)
@@ -112,15 +130,29 @@ def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
         if not lineas:
             return []
             
-        xs = [l['x1'] for l in lineas] + [l['x2'] for l in lineas]
-        ys = [l['y1'] for l in lineas] + [l['y2'] for l in lineas]
-        min_x, min_y = min(xs), min(ys)
+        # Solo usar las coordenadas de las líneas para el Bounding Box
+        xs = []
+        ys = []
+        for l in lineas:
+            if l.get('type') == 'text':
+                continue
+            xs.extend([l['x1'], l['x2']])
+            ys.extend([l['y1'], l['y2']])
+            
+        if xs and ys:
+            min_x, min_y = min(xs), min(ys)
+        else:
+            min_x, min_y = 0, 0
         
         for l in lineas:
-            l['x1'] -= min_x
-            l['y1'] -= min_y
-            l['x2'] -= min_x
-            l['y2'] -= min_y
+            if l.get('type') == 'text':
+                l['x'] -= min_x
+                l['y'] -= min_y
+            else:
+                l['x1'] -= min_x
+                l['y1'] -= min_y
+                l['x2'] -= min_x
+                l['y2'] -= min_y
             
         return lineas
         
