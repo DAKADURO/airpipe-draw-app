@@ -45,7 +45,7 @@ def generar_dxf(plano: dict) -> str:
         is_text = l.get('type') == 'text'
         if is_text:
             x, y, h = l.get('x', 0) * bg_scale, l.get('y', 0) * bg_scale, l.get('h', 0) * bg_scale
-            tx, ty = tr(x, y, 0)
+            tx, ty, tz = tr(x, y, 0)
             text_str = l.get('text', '')
             msp.add_text(
                 text_str,
@@ -53,12 +53,12 @@ def generar_dxf(plano: dict) -> str:
                     'layer': 'FONDO',
                     'height': h * SCALE_FACTOR
                 }
-            ).set_placement((tx * SCALE_FACTOR, -ty * SCALE_FACTOR))
+            ).set_placement((tx, -ty)) # En DXF 2D/3D invertimos Y
         else:
             x1, y1 = l.get('x1', 0) * bg_scale, l.get('y1', 0) * bg_scale
             x2, y2 = l.get('x2', 0) * bg_scale, l.get('y2', 0) * bg_scale
-            tx1, ty1 = tr(x1, y1, 0)
-            tx2, ty2 = tr(x2, y2, 0)
+            tx1, ty1, tz1 = tr(x1, y1, 0)
+            tx2, ty2, tz2 = tr(x2, y2, 0)
             msp.add_line(
                 (tx1, -ty1),
                 (tx2, -ty2),
