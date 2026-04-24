@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { invalidateSnapCache } from '../math.js';
 import { procesarPlano, downloadPDF, downloadPDFDirect } from '../api.js';
 import { setStatus } from './tools.js';
 import { syncIsometricUI } from './scene_panel.js';
@@ -46,6 +47,7 @@ export function setupExports(canvas) {
                     }));
 
                     state.historial = [...otrosElementos, ...nuevasLineasHistorial];
+                    invalidateSnapCache();
 
                     state.historial.forEach(item => {
                         if (item.tipo === 'nodo') {
