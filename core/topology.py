@@ -1,6 +1,6 @@
 import math
 
-SNAP_DISTANCE_PX = 8.0
+SNAP_DISTANCE_PX = 20.0
 
 def _interseccion_segmentos(p1, p2, p3, p4) -> tuple | None:
     x1, y1 = p1; x2, y2 = p2
@@ -39,20 +39,40 @@ def _punto_sobre_segmento_3d(px, py, pz, linea, tol=8.0):
     return None
 
 def fragmentar_intersecciones(lineas: list[dict]) -> list[dict]:
-    result = list(lineas)
+    """
+    Divide líneas cuando se cruzan o cuando un extremo de una línea toca el cuerpo de otra (T-junction).
+    Optimizado con chequeo AABB.
+    """
+    result = [dict(l) for l in lineas]
     cambiado = True
-    while cambiado:
+    iterations = 0
+    
+    while cambiado and iterations < 100:
         cambiado = False
-        nuevo = []
-        usadas = set()
-        for i, la in enumerate(result):
-            if i in usadas: continue
-            corte = False
-            for j, lb in enumerate(result):
-                if j <= i or j in usadas: continue
+        iterations += 1
+        nuevo_result = []
+        skip_indices = set()
+        
+        for i in range(len(result)):
+            if i in skip_indices: continue
+            la = result[i]
+            corte_encontrado = False
+            
+            for j in range(len(result)):
+                if i == j or j in skip_indices: continue
+                lb = result[j]
+                
+                # Optimización AABB
+                tol = 0.5 # Pequeño margen para T-junctions
+                if (min(la["x1"], la["x2"]) - tol > max(lb["x1"], lb["x2"]) or
+                    max(la["x1"], la["x2"]) + tol < min(lb["x1"], lb["x2"]) or
+                    min(la["y1"], la["y2"]) - tol > max(lb["y1"], lb["y2"]) or
+                    max(la["y1"], la["y2"]) + tol < min(lb["y1"], lb["y2"])):
+                    continue
 
-                # X-crossing
-                pt2d = _interseccion_segmentos((la["x1"], la["y1"]), (la["x2"], la["y2"]), (lb["x1"], lb["y1"]), (lb["x2"], lb["y2"]))
+                # 1. Intersección Real (X)
+                pt2d = _interseccion_segmentos((la["x1"], la["y1"]), (la["x2"], la["y2"]), 
+                                               (lb["x1"], lb["y1"]), (lb["x2"], lb["y2"]))
                 if pt2d:
                     def get_z_at(line, pt):
                         d2_total = math.hypot(line["x2"] - line["x1"], line["y2"] - line["y1"])
@@ -63,55 +83,74 @@ def fragmentar_intersecciones(lineas: list[dict]) -> list[dict]:
                     if abs(za - zb) < 5.0:
                         ix, iy = pt2d
                         avg_z = (za + zb) / 2
-                        nuevo.extend([
-                            {**la, "x2": ix, "y2": iy, "z2": avg_z}, {**la, "x1": ix, "y1": iy, "z1": avg_z},
-                            {**lb, "x2": ix, "y2": iy, "z2": avg_z}, {**lb, "x1": ix, "y1": iy, "z1": avg_z}
-                        ])
-                        usadas.add(j); cambiado = True; corte = True; break
+                        # Dividir ambas líneas
+                        nuevo_result.append({**la, "x2": ix, "y2": iy, "z2": avg_z})
+                        nuevo_result.append({**la, "x1": ix, "y1": iy, "z1": avg_z})
+                        nuevo_result.append({**lb, "x2": ix, "y2": iy, "z2": avg_z})
+                        nuevo_result.append({**lb, "x1": ix, "y1": iy, "z1": avg_z})
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        corte_encontrado = True
+                        cambiado = True
+                        break
 
-                # T-junction
+                # 2. Unión en T (Extremo de B sobre A)
                 for pt_idx, (px, py, pz) in enumerate([(lb["x1"], lb["y1"], lb.get("z1", 0)), (lb["x2"], lb["y2"], lb.get("z2", 0))]):
-                    proj = _punto_sobre_segmento_3d(px, py, pz, la)
+                    proj = _punto_sobre_segmento_3d(px, py, pz, la, tol=SNAP_DISTANCE_PX)
                     if proj:
                         ix, iy, iz = proj
-                        nuevo.extend([{**la, "x2": ix, "y2": iy, "z2": iz}, {**la, "x1": ix, "y1": iy, "z1": iz}])
-                        new_lb = {**lb}
-                        if pt_idx == 0: new_lb["x1"], new_lb["y1"], new_lb["z1"] = ix, iy, iz
-                        else: new_lb["x2"], new_lb["y2"], new_lb["z2"] = ix, iy, iz
-                        nuevo.append(new_lb)
-                        usadas.add(j); cambiado = True; corte = True; break
-                if corte: break
-            if not corte: nuevo.append(la)
-        result = nuevo
+                        # Dividir A, ajustar B
+                        nuevo_result.append({**la, "x2": ix, "y2": iy, "z2": iz})
+                        nuevo_result.append({**la, "x1": ix, "y1": iy, "z1": iz})
+                        new_lb = dict(lb)
+                        if pt_idx == 0: 
+                            new_lb["x1"], new_lb["y1"], new_lb["z1"] = ix, iy, iz
+                        else:
+                            new_lb["x2"], new_lb["y2"], new_lb["z2"] = ix, iy, iz
+                        nuevo_result.append(new_lb)
+                        
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        corte_encontrado = True
+                        cambiado = True
+                        break
+                
+                if corte_encontrado: break
+            
+            if not corte_encontrado:
+                nuevo_result.append(la)
+        
+        result = nuevo_result
+    
     return result
 
 def fusionar_intersecciones(lineas: list[dict], nodos: list[dict]) -> tuple[list[dict], list[dict]]:
     lineas = [dict(ln) for ln in lineas]
     nodos  = [dict(nd) for nd in nodos]
     
-    # Recolectar todos los puntos (puntas de líneas y nodos de hardware)
-    puntos = []
-    for linea in lineas:
-        puntos.append({"x": linea["x1"], "y": linea["y1"], "z": linea.get("z1", 0), "ref": linea, "attr": "1"})
-        puntos.append({"x": linea["x2"], "y": linea["y2"], "z": linea.get("z2", 0), "ref": linea, "attr": "2"})
+    # 1. Recolectar puntos prioritarios (nodos de hardware) primero
+    # Esto asegura que ellos establezcan la posición del cluster
+    puntos_prioritarios = []
     for nodo in nodos:
-        puntos.append({"x": nodo["x"], "y": nodo["y"], "z": nodo.get("z", 0), "ref": nodo, "attr": "n"})
+        puntos_prioritarios.append({"x": nodo["x"], "y": nodo["y"], "z": nodo.get("z", 0), "ref": nodo, "attr": "n"})
 
-    if not puntos:
+    # 2. Recolectar puntos secundarios (extremos de tuberías)
+    puntos_secundarios = []
+    for linea in lineas:
+        puntos_secundarios.append({"x": linea["x1"], "y": linea["y1"], "z": linea.get("z1", 0), "ref": linea, "attr": "1"})
+        puntos_secundarios.append({"x": linea["x2"], "y": linea["y2"], "z": linea.get("z2", 0), "ref": linea, "attr": "2"})
+
+    if not puntos_prioritarios and not puntos_secundarios:
         return lineas, nodos
 
     # --- Optimización Espacial (Grid Snapping) ---
-    # Usamos un diccionario como hash espacial para agrupar puntos en celdas de tamaño SNAP_DISTANCE_PX
-    grid = {}
     cluster_leaders = {} # cell -> leader_coords (x, y, z)
     
     def get_cell(x, y, z):
         return (int(x // SNAP_DISTANCE_PX), int(y // SNAP_DISTANCE_PX), int(z // SNAP_DISTANCE_PX))
 
-    # Paso 1: Identificar líderes de cluster y mapear puntos
-    for p in puntos:
+    def snap_point(p, is_prioritario):
         cell = get_cell(p["x"], p["y"], p["z"])
-        # Revisamos la celda actual y sus 26 vecinas para ver si ya hay un líder cerca
         found_leader = None
         for dx in [-1, 0, 1]:
             for dy in [-1, 0, 1]:
@@ -129,13 +168,17 @@ def fusionar_intersecciones(lineas: list[dict], nodos: list[dict]) -> tuple[list
         if found_leader:
             p["new_x"], p["new_y"], p["new_z"] = found_leader
         else:
-            # Este punto se convierte en el líder de su celda
             leader_coords = (p["x"], p["y"], p["z"])
             cluster_leaders[cell] = leader_coords
             p["new_x"], p["new_y"], p["new_z"] = leader_coords
 
-    # Paso 2: Aplicar las nuevas coordenadas a las referencias originales
-    for p in puntos:
+    # Procesar prioritarios primero para que "manden" sobre las tuberías
+    for p in puntos_prioritarios: snap_point(p, True)
+    for p in puntos_secundarios: snap_point(p, False)
+
+    # Paso 2: Aplicar coordenadas
+    todos = puntos_prioritarios + puntos_secundarios
+    for p in todos:
         nx, ny, nz = round(p["new_x"], 4), round(p["new_y"], 4), round(p["new_z"], 4)
         ref, attr = p["ref"], p["attr"]
         if attr == "1":
