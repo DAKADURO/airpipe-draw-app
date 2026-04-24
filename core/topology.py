@@ -70,38 +70,17 @@ def fragmentar_intersecciones(lineas: list[dict]) -> list[dict]:
                     max(la["y1"], la["y2"]) + tol < min(lb["y1"], lb["y2"])):
                     continue
 
-                # 1. Intersección Real (X)
-                pt2d = _interseccion_segmentos((la["x1"], la["y1"]), (la["x2"], la["y2"]), 
-                                               (lb["x1"], lb["y1"]), (lb["x2"], lb["y2"]))
-                if pt2d:
-                    def get_z_at(line, pt):
-                        d2_total = math.hypot(line["x2"] - line["x1"], line["y2"] - line["y1"])
-                        if d2_total < 0.1: return line.get("z1", 0)
-                        return line.get("z1", 0) + (math.hypot(pt[0] - line["x1"], pt[1] - line["y1"]) / d2_total) * (line.get("z2", 0) - line.get("z1", 0))
-
-                    za, zb = get_z_at(la, pt2d), get_z_at(lb, pt2d)
-                    if abs(za - zb) < 5.0:
-                        ix, iy = pt2d
-                        avg_z = (za + zb) / 2
-                        # Dividir ambas líneas
-                        nuevo_result.append({**la, "x2": ix, "y2": iy, "z2": avg_z})
-                        nuevo_result.append({**la, "x1": ix, "y1": iy, "z1": avg_z})
-                        nuevo_result.append({**lb, "x2": ix, "y2": iy, "z2": avg_z})
-                        nuevo_result.append({**lb, "x1": ix, "y1": iy, "z1": avg_z})
-                        skip_indices.add(i)
-                        skip_indices.add(j)
-                        corte_encontrado = True
-                        cambiado = True
-                        break
-
-                # 2. Unión en T (Extremo de B sobre A)
+                # Unión en T (Extremo de B sobre el cuerpo de A)
+                # Solo dividimos la línea A si el extremo de B cae encima.
+                # No cortamos automáticamente si dos líneas simplemente se cruzan en "X".
                 for pt_idx, (px, py, pz) in enumerate([(lb["x1"], lb["y1"], lb.get("z1", 0)), (lb["x2"], lb["y2"], lb.get("z2", 0))]):
                     proj = _punto_sobre_segmento_3d(px, py, pz, la, tol=SNAP_DISTANCE_PX)
                     if proj:
                         ix, iy, iz = proj
-                        # Dividir A, ajustar B
+                        # Dividir A en dos segmentos, ajustar el extremo de B para que coincida exactamente
                         nuevo_result.append({**la, "x2": ix, "y2": iy, "z2": iz})
                         nuevo_result.append({**la, "x1": ix, "y1": iy, "z1": iz})
+                        
                         new_lb = dict(lb)
                         if pt_idx == 0: 
                             new_lb["x1"], new_lb["y1"], new_lb["z1"] = ix, iy, iz

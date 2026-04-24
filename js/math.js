@@ -1,8 +1,8 @@
 import { state } from './state.js';
 
-export const SNAP_RADIUS = 15;
+export const SNAP_RADIUS = 20;
 export const SNAP_ANGLE = 22.5;
-export const SNAP_GUIDE_TOLERANCE = 10;
+export const SNAP_GUIDE_TOLERANCE = 15;
 export const ANGULOS_SNAP = [0, 45, 90, 135, 180, 225, 270, 315];
 
 // Constants for asymmetric isometric projection (breaks 45-degree vertical overlap)
