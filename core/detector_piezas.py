@@ -244,6 +244,40 @@ def detectar_piezas(lineas: list[dict], nodos_hardware: list[dict] = None, is_is
 
     # ... aplicar diametro a las demas piezas arriba ...
 
-    # La detección de tramos largos para el BOM se delega al generador de reportes
-    # para mantener el dibujo limpio y sin iconos redundantes cada 6 metros.
+    # 3. Detectar Tramos Largos (Coples cada 19 ft / 5.79m)
+    # 19 ft = 5.7912 m. A 100 px/m -> 579.12 px
+    MAX_LEN_PX = 579.12
+    
+    for linea in lineas:
+        lx = linea["x2"] - linea["x1"]
+        ly = linea["y2"] - linea["y1"]
+        lz = linea.get("z2", 0) - linea.get("z1", 0)
+        longitud_px = math.sqrt(lx**2 + ly**2 + lz**2)
+        
+        if longitud_px > MAX_LEN_PX:
+            num_uniones = int(longitud_px // MAX_LEN_PX)
+            if longitud_px % MAX_LEN_PX < 0.1: num_uniones -= 1 # Evitar unión en el extremo exacto
+            
+            ux, uy, uz = lx / longitud_px, ly / longitud_px, lz / longitud_px
+            
+            for i in range(1, num_uniones + 1):
+                px = linea["x1"] + ux * (i * MAX_LEN_PX)
+                py = linea["y1"] + uy * (i * MAX_LEN_PX)
+                pz = linea.get("z1", 0) + uz * (i * MAX_LEN_PX)
+                
+                # Verificar que no estemos duplicando una pieza existente
+                cerca = False
+                for p_existente in piezas:
+                    dist = math.sqrt((px - p_existente["x"])**2 + (py - p_existente["y"])**2 + (pz - p_existente.get("z",0))**2)
+                    if dist < 10.0:
+                        cerca = True; break
+                
+                if not cerca:
+                    piezas.append({
+                        "tipo": "Union",
+                        "x": px, "y": py, "z": pz,
+                        "angulos": [],
+                        "diametro": linea.get("diametro")
+                    })
+
     return piezas
