@@ -11,18 +11,18 @@ def generar_dxf(plano: dict) -> str:
     """
     is_iso = plano.get("is_isometric", False)
     
+    # Factor de escala: 100 px = 1 metro (Consistente con el canvas)
+    SCALE_FACTOR = 1.0 / 100.0
+
     def tr(x, y, z=0):
-        if is_iso:
-            return project_iso(x, y, z)
-        return x, y
+        # Retornamos coordenadas 3D reales en metros
+        # Invertimos Y para alinearnos con el estándar de CAD (Y+ hacia arriba en el canvas es Y- en mundo real)
+        return x * SCALE_FACTOR, -y * SCALE_FACTOR, z * SCALE_FACTOR
 
     # Crear un nuevo dibujo DXF
     doc = ezdxf.new('R2010')
-    doc.header['$INSUNITS'] = 6
+    doc.header['$INSUNITS'] = 6 # Metros
     msp = doc.modelspace()
-
-    # Factor de escala: 50 px = 1 metro
-    SCALE_FACTOR = 1.0 / 50.0
 
     # Definir capas
     if 'TUBERIAS' not in doc.layers:
@@ -60,29 +60,85 @@ def generar_dxf(plano: dict) -> str:
             tx1, ty1 = tr(x1, y1, 0)
             tx2, ty2 = tr(x2, y2, 0)
             msp.add_line(
-                (tx1 * SCALE_FACTOR, -ty1 * SCALE_FACTOR),
-                (tx2 * SCALE_FACTOR, -ty2 * SCALE_FACTOR),
+                (tx1, -ty1),
+                (tx2, -ty2),
                 dxfattribs={'layer': 'FONDO'}
             )
 
-    # Dibujar tuberías
+    # Dibujar tuberías en 3D (Cilindros Básicos)
     lineas = plano.get('lineas', [])
     for linea in lineas:
         x1, y1, z1 = linea['x1'], linea['y1'], linea.get('z1', 0)
         x2, y2, z2 = linea['x2'], linea['y2'], linea.get('z2', 0)
         
-        tx1, ty1 = tr(x1, y1, z1)
-        tx2, ty2 = tr(x2, y2, z2)
+        start = tr(x1, y1, z1)
+        end = tr(x2, y2, z2)
+        
+        # Obtener radio según diámetro (o defecto 0.02m)
+        try:
+            d_str = str(linea.get('diametro', '1')).replace('"', '')
+            if '/' in d_str: # Manejar fracciones como 1/2
+                num, den = d_str.split('/')
+                d_val = float(num) / float(den)
+            else:
+                d_val = float(d_str)
+            radius = (d_val * 0.0254) / 2.0
+        except:
+            radius = 0.02 # ~1.5" por defecto
 
-        # En DXF invertimos Y después de proyectar (si es iso) o directamente (si es 2D)
-        start = (tx1 * SCALE_FACTOR, -ty1 * SCALE_FACTOR) 
-        end = (tx2 * SCALE_FACTOR, -ty2 * SCALE_FACTOR)
-        msp.add_line(start, end, dxfattribs={'layer': 'TUBERIAS'})
+        # Dibujar el "tubo" como una malla simple de 4 caras (prisma cuadrado)
+        # Esto es muy ligero y se ve 3D en AutoCAD
+        dx, dy, dz = end[0] - start[0], end[1] - start[1], end[2] - start[2]
+        dist = math.sqrt(dx**2 + dy**2 + dz**2)
+        
+        if dist > 0.001:
+            # Crear un vector perpendicular para el radio
+            # Intentamos usar Z como referencia, si la tubería es vertical usamos X
+            if abs(dz) / dist > 0.9: 
+                v_perp = (1, 0, 0)
+            else:
+                v_perp = (0, 0, 1)
+            
+            # Producto cruz para obtener el sistema de coordenadas local del tubo
+            def cross(a, b):
+                return (a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0])
+            
+            vec_tubo = (dx/dist, dy/dist, dz/dist)
+            u = cross(v_perp, vec_tubo)
+            mag_u = math.sqrt(sum(x**2 for x in u))
+            u = (u[0]/mag_u, u[1]/mag_u, u[2]/mag_u)
+            v = cross(vec_tubo, u)
+            
+            # Generar los 4 puntos de la base y los 4 del final
+            vertices = []
+            for ang in [0, 90, 180, 270]:
+                rad = math.radians(ang)
+                cos, sin = math.cos(rad), math.sin(rad)
+                # Punto en la base
+                vertices.append((
+                    start[0] + radius * (cos * u[0] + sin * v[0]),
+                    start[1] + radius * (cos * u[1] + sin * v[1]),
+                    start[2] + radius * (cos * u[2] + sin * v[2])
+                ))
+                # Punto en el final
+                vertices.append((
+                    end[0] + radius * (cos * u[0] + sin * v[0]),
+                    end[1] + radius * (cos * u[1] + sin * v[1]),
+                    end[2] + radius * (cos * u[2] + sin * v[2])
+                ))
+            
+            # Añadir las 4 caras laterales
+            for i in range(0, 8, 2):
+                p1, p2, p3, p4 = vertices[i], vertices[i+1], vertices[(i+3)%8], vertices[(i+2)%8]
+                msp.add_3dface([p1, p2, p3, p4], dxfattribs={'layer': 'TUBERIAS'})
+        else:
+            # Si el tramo es minúsculo, solo una línea
+            msp.add_line(start, end, dxfattribs={'layer': 'TUBERIAS'})
 
         # Etiqueta de diámetro
         diametro = linea.get('diametro')
         if diametro:
-            mx, my = (start[0] + end[0]) / 2, (start[1] + end[1]) / 2
+            mx, my, mz = (start[0] + end[0]) / 2, (start[1] + end[1]) / 2, (start[2] + end[2]) / 2
             dx, dy = end[0] - start[0], end[1] - start[1]
             angulo = math.degrees(math.atan2(dy, dx))
             if angulo > 90 or angulo < -90:
