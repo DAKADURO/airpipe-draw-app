@@ -1,6 +1,6 @@
 import math
 
-SNAP_DISTANCE_PX = 20.0
+SNAP_DISTANCE_PX = 12.0
 
 def _interseccion_segmentos(p1, p2, p3, p4) -> tuple | None:
     x1, y1 = p1; x2, y2 = p2
@@ -40,67 +40,65 @@ def _punto_sobre_segmento_3d(px, py, pz, linea, tol=8.0):
 
 def fragmentar_intersecciones(lineas: list[dict]) -> list[dict]:
     """
-    Divide líneas cuando se cruzan o cuando un extremo de una línea toca el cuerpo de otra (T-junction).
-    Optimizado con chequeo AABB.
+    Divide líneas cuando un extremo de una línea toca el cuerpo de otra (T-junction).
+    Utiliza un enfoque atómico para evitar duplicados.
     """
     result = [dict(l) for l in lineas]
     cambiado = True
     iterations = 0
     
-    while cambiado and iterations < 100:
+    while cambiado and iterations < 150:
         cambiado = False
         iterations += 1
-        nuevo_result = []
-        skip_indices = set()
         
+        idx_a = -1
+        idx_b = -1
+        ix, iy, iz = 0, 0, 0
+        pt_idx_b = -1
+        
+        # Buscar la primera unión en T disponible
         for i in range(len(result)):
-            if i in skip_indices: continue
             la = result[i]
-            corte_encontrado = False
-            
             for j in range(len(result)):
-                if i == j or j in skip_indices: continue
+                if i == j: continue
                 lb = result[j]
                 
-                # Optimización AABB
-                tol = 0.5 # Pequeño margen para T-junctions
-                if (min(la["x1"], la["x2"]) - tol > max(lb["x1"], lb["x2"]) or
-                    max(la["x1"], la["x2"]) + tol < min(lb["x1"], lb["x2"]) or
-                    min(la["y1"], la["y2"]) - tol > max(lb["y1"], lb["y2"]) or
-                    max(la["y1"], la["y2"]) + tol < min(lb["y1"], lb["y2"])):
+                # Optimización AABB básica
+                if (min(la["x1"], la["x2"]) - 1.0 > max(lb["x1"], lb["x2"]) or
+                    max(la["x1"], la["x2"]) + 1.0 < min(lb["x1"], lb["x2"]) or
+                    min(la["y1"], la["y2"]) - 1.0 > max(lb["y1"], lb["y2"]) or
+                    max(la["y1"], la["y2"]) + 1.0 < min(lb["y1"], lb["y2"])):
                     continue
 
-                # Unión en T (Extremo de B sobre el cuerpo de A)
-                # Solo dividimos la línea A si el extremo de B cae encima.
-                # No cortamos automáticamente si dos líneas simplemente se cruzan en "X".
                 for pt_idx, (px, py, pz) in enumerate([(lb["x1"], lb["y1"], lb.get("z1", 0)), (lb["x2"], lb["y2"], lb.get("z2", 0))]):
                     proj = _punto_sobre_segmento_3d(px, py, pz, la, tol=SNAP_DISTANCE_PX)
                     if proj:
+                        idx_a = i
+                        idx_b = j
                         ix, iy, iz = proj
-                        # Dividir A en dos segmentos, ajustar el extremo de B para que coincida exactamente
-                        nuevo_result.append({**la, "x2": ix, "y2": iy, "z2": iz})
-                        nuevo_result.append({**la, "x1": ix, "y1": iy, "z1": iz})
-                        
-                        new_lb = dict(lb)
-                        if pt_idx == 0: 
-                            new_lb["x1"], new_lb["y1"], new_lb["z1"] = ix, iy, iz
-                        else:
-                            new_lb["x2"], new_lb["y2"], new_lb["z2"] = ix, iy, iz
-                        nuevo_result.append(new_lb)
-                        
-                        skip_indices.add(i)
-                        skip_indices.add(j)
-                        corte_encontrado = True
+                        pt_idx_b = pt_idx
                         cambiado = True
                         break
-                
-                if corte_encontrado: break
+                if cambiado: break
+            if cambiado: break
             
-            if not corte_encontrado:
-                nuevo_result.append(la)
-        
-        result = nuevo_result
-    
+        if cambiado:
+            la = result.pop(idx_a)
+            # Reajustar idx_b si fue afectado por el pop de a
+            if idx_a < idx_b: idx_b -= 1
+            lb = result.pop(idx_b)
+            
+            # Crear los 3 nuevos segmentos
+            result.append({**la, "x2": ix, "y2": iy, "z2": iz})
+            result.append({**la, "x1": ix, "y1": iy, "z1": iz})
+            
+            new_lb = dict(lb)
+            if pt_idx_b == 0:
+                new_lb["x1"], new_lb["y1"], new_lb["z1"] = ix, iy, iz
+            else:
+                new_lb["x2"], new_lb["y2"], new_lb["z2"] = ix, iy, iz
+            result.append(new_lb)
+            
     return result
 
 def fusionar_intersecciones(lineas: list[dict], nodos: list[dict]) -> tuple[list[dict], list[dict]]:
