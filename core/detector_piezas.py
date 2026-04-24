@@ -233,67 +233,17 @@ def detectar_piezas(lineas: list[dict], nodos_hardware: list[dict] = None, is_is
                 "diametro": d_max
             })
             
-        elif grado == 4:
-            tiene_180 = False
-            for i in range(4):
-                for j in range(i + 1, 4):
-                    dot = max(-1.0, min(1.0, vectores[i][0]*vectores[j][0] + vectores[i][1]*vectores[j][1] + vectores[i][2]*vectores[j][2]))
-                    if abs(math.degrees(math.acos(dot)) - 180) <= 10.0:
-                        tiene_180 = True
-            
-            if tiene_180:
-                piezas.append({
-                    "tipo": "Cruz",
-                    "x": x, "y": y, "z": z, "angulos": angulos_xy,
-                    "diametro": d_max
-                })
+        elif grado >= 4:
+            # En redes de aire, las cruces de 4 vías son raras. 
+            # Las tratamos como uniones múltiples para no ensuciar con el símbolo '+'.
+            piezas.append({
+                "tipo": "Union",
+                "x": x, "y": y, "z": z, "angulos": angulos_xy,
+                "diametro": d_max
+            })
 
     # ... aplicar diametro a las demas piezas arriba ...
 
-    # 3. Detectar Tramos Largos (> 19ft) e insertar Uniones Virtuales
-    # 19 ft = 5.7912 m. A 100 px/m -> 579.12 px
-    MAX_LEN_PX = 579.12
-    
-    # Mapa de piezas existentes para evitar superposiciones
-    piezas_existentes = {(p["x"], p["y"]) for p in piezas}
-    
-    for linea in lineas:
-        lx = linea["x2"] - linea["x1"]
-        ly = linea["y2"] - linea["y1"]
-        lz = linea.get("z2", 0) - linea.get("z1", 0)
-        longitud_px = math.sqrt(lx**2 + ly**2 + lz**2)
-        
-        if longitud_px > MAX_LEN_PX:
-            # Calcular cuántas uniones se necesitan
-            num_uniones = int(longitud_px // MAX_LEN_PX)
-            
-            # Vector unitario
-            ux = lx / longitud_px
-            uy = ly / longitud_px
-            uz = lz / longitud_px
-            
-            for i in range(1, num_uniones + 1):
-                dist = i * MAX_LEN_PX
-                px = linea["x1"] + ux * dist
-                py = linea["y1"] + uy * dist
-                local_pz = linea.get("z1", 0) + uz * dist
-                
-                # Verificar si ya existe una pieza cerca (Tolerancia 5px 3D)
-                existe = False
-                for ex, ey, ez in [(p["x"], p["y"], p.get("z", 0)) for p in piezas]:
-                     if math.sqrt((px - ex)**2 + (py - ey)**2 + (local_pz - ez)**2) < 5.0:
-                          existe = True
-                          break
-                
-                if not existe:
-                    piezas.append({
-                        "tipo": "Union",
-                        "x": px,
-                        "y": py,
-                        "z": local_pz,
-                        "angulos": [], # Virtual
-                        "diametro": linea.get("diametro")
-                    })
-                    piezas_existentes.add((px, py))
-
+    # La detección de tramos largos para el BOM se delega al generador de reportes
+    # para mantener el dibujo limpio y sin iconos redundantes cada 6 metros.
     return piezas
