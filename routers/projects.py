@@ -161,10 +161,7 @@ def export_pdf(project_id):
             imagen_b64=imagen_b64
         )
         
-        if isinstance(pdf_content, str):
-            pdf_bytes = pdf_content.encode('latin-1')
-        else:
-            pdf_bytes = pdf_content
+        pdf_bytes = pdf_content
 
         response = make_response(pdf_bytes)
         response.headers['Content-Type'] = 'application/pdf'

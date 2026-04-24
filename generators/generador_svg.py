@@ -47,6 +47,27 @@ def generar_svg(plano: dict, ancho: int = 1920, alto: int = 1080) -> str:
         f'  <rect width="{ancho}" height="{alto}" fill="url(#grid)"/>',
     ]
 
+    # --- Fondo DXF (si existe) ---
+    bg_lines = plano.get("bgLines", [])
+    bg_scale = plano.get("bgScale", 1.0)
+    if bg_lines:
+        svg.append('  <g id="fondo_dxf" opacity="0.4">')
+        for l in bg_lines:
+            if l.get('type') == 'text':
+                x, y = l.get('x', 0) * bg_scale, l.get('y', 0) * bg_scale
+                tx, ty = tr(x, y)
+                tx += offset_x; ty += offset_y
+                svg.append(f'    <text x="{tx}" y="{ty}" fill="#888" font-family="Arial" font-size="8">{l.get("text", "")}</text>')
+            else:
+                x1, y1 = l.get('x1', 0) * bg_scale, l.get('y1', 0) * bg_scale
+                x2, y2 = l.get('x2', 0) * bg_scale, l.get('y2', 0) * bg_scale
+                tx1, ty1 = tr(x1, y1)
+                tx2, ty2 = tr(x2, y2)
+                tx1 += offset_x; ty1 += offset_y
+                tx2 += offset_x; ty2 += offset_y
+                svg.append(f'    <line x1="{tx1}" y1="{ty1}" x2="{tx2}" y2="{ty2}" stroke="#CCC" stroke-width="0.5"/>')
+        svg.append('  </g>')
+
     # Tuberías
     svg.append('  <g id="tuberias">')
     for linea in lineas:

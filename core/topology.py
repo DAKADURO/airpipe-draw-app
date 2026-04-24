@@ -1,6 +1,6 @@
 import math
 
-SNAP_DISTANCE_PX = 25
+SNAP_DISTANCE_PX = 8.0
 
 def _interseccion_segmentos(p1, p2, p3, p4) -> tuple | None:
     x1, y1 = p1; x2, y2 = p2
@@ -88,32 +88,62 @@ def fragmentar_intersecciones(lineas: list[dict]) -> list[dict]:
 def fusionar_intersecciones(lineas: list[dict], nodos: list[dict]) -> tuple[list[dict], list[dict]]:
     lineas = [dict(ln) for ln in lineas]
     nodos  = [dict(nd) for nd in nodos]
-    puntos = []
     
+    # Recolectar todos los puntos (puntas de líneas y nodos de hardware)
+    puntos = []
     for linea in lineas:
-        puntos.extend([
-            [linea["x1"], linea["y1"], linea.get("z1", 0), linea, "1"],
-            [linea["x2"], linea["y2"], linea.get("z2", 0), linea, "2"]
-        ])
+        puntos.append({"x": linea["x1"], "y": linea["y1"], "z": linea.get("z1", 0), "ref": linea, "attr": "1"})
+        puntos.append({"x": linea["x2"], "y": linea["y2"], "z": linea.get("z2", 0), "ref": linea, "attr": "2"})
     for nodo in nodos:
-        puntos.append([nodo["x"], nodo["y"], nodo.get("z", 0), nodo, "n"])
+        puntos.append({"x": nodo["x"], "y": nodo["y"], "z": nodo.get("z", 0), "ref": nodo, "attr": "n"})
 
-    n = len(puntos)
-    for i in range(n):
-        for j in range(i + 1, n):
-            if math.hypot(puntos[i][0]-puntos[j][0], puntos[i][1]-puntos[j][1], puntos[i][2]-puntos[j][2]) <= SNAP_DISTANCE_PX:
-                mx, my, mz = (puntos[i][0]+puntos[j][0])/2, (puntos[i][1]+puntos[j][1])/2, (puntos[i][2]+puntos[j][2])/2
-                puntos[i][0] = puntos[j][0] = mx
-                puntos[i][1] = puntos[j][1] = my
-                puntos[i][2] = puntos[j][2] = mz
+    if not puntos:
+        return lineas, nodos
 
-    for px, py, pz, ref, t in puntos:
-        if t == "1":
-            ref["x1"], ref["y1"], ref["z1"] = round(px, 4), round(py, 4), round(pz, 4)
-        elif t == "2":
-            ref["x2"], ref["y2"], ref["z2"] = round(px, 4), round(py, 4), round(pz, 4)
+    # --- Optimización Espacial (Grid Snapping) ---
+    # Usamos un diccionario como hash espacial para agrupar puntos en celdas de tamaño SNAP_DISTANCE_PX
+    grid = {}
+    cluster_leaders = {} # cell -> leader_coords (x, y, z)
+    
+    def get_cell(x, y, z):
+        return (int(x // SNAP_DISTANCE_PX), int(y // SNAP_DISTANCE_PX), int(z // SNAP_DISTANCE_PX))
+
+    # Paso 1: Identificar líderes de cluster y mapear puntos
+    for p in puntos:
+        cell = get_cell(p["x"], p["y"], p["z"])
+        # Revisamos la celda actual y sus 26 vecinas para ver si ya hay un líder cerca
+        found_leader = None
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                for dz in [-1, 0, 1]:
+                    neighbor_cell = (cell[0] + dx, cell[1] + dy, cell[2] + dz)
+                    if neighbor_cell in cluster_leaders:
+                        lx, ly, lz = cluster_leaders[neighbor_cell]
+                        dist = math.hypot(p["x"] - lx, p["y"] - ly, p["z"] - lz)
+                        if dist <= SNAP_DISTANCE_PX:
+                            found_leader = (lx, ly, lz)
+                            break
+                if found_leader: break
+            if found_leader: break
+        
+        if found_leader:
+            p["new_x"], p["new_y"], p["new_z"] = found_leader
         else:
-            ref["x"], ref["y"], ref["z"] = round(px, 4), round(py, 4), round(pz, 4)
+            # Este punto se convierte en el líder de su celda
+            leader_coords = (p["x"], p["y"], p["z"])
+            cluster_leaders[cell] = leader_coords
+            p["new_x"], p["new_y"], p["new_z"] = leader_coords
+
+    # Paso 2: Aplicar las nuevas coordenadas a las referencias originales
+    for p in puntos:
+        nx, ny, nz = round(p["new_x"], 4), round(p["new_y"], 4), round(p["new_z"], 4)
+        ref, attr = p["ref"], p["attr"]
+        if attr == "1":
+            ref["x1"], ref["y1"], ref["z1"] = nx, ny, nz
+        elif attr == "2":
+            ref["x2"], ref["y2"], ref["z2"] = nx, ny, nz
+        else: # nodo
+            ref["x"], ref["y"], ref["z"] = nx, ny, nz
 
     return lineas, nodos
 
