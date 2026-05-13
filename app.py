@@ -49,6 +49,12 @@ if database_url.startswith("postgres://"):
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 280, # Railway connections often timeout after 300s
+    "pool_size": 10,
+    "max_overflow": 20
+}
 
 # Enable SQLite WAL mode for better concurrency
 from sqlalchemy import event
