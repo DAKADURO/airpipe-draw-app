@@ -72,6 +72,8 @@ export function scheduleRedraw(layerId = null) {
     if (layerId) {
         if (!state._pendingLayers) state._pendingLayers = new Set();
         state._pendingLayers.add(layerId);
+    } else {
+        state._needsFullRedraw = true;
     }
 
     if (!state._rafPending) {
@@ -79,11 +81,14 @@ export function scheduleRedraw(layerId = null) {
         requestAnimationFrame(() => {
             state._rafPending = false;
             state._currentViewport = getViewportWorldBounds();
-            if (state._pendingLayers && state._pendingLayers.size > 0) {
+            
+            if (state._needsFullRedraw) {
+                if (state._pendingLayers) state._pendingLayers.clear();
+                state._needsFullRedraw = false;
+                redraw();
+            } else if (state._pendingLayers && state._pendingLayers.size > 0) {
                 state._pendingLayers.forEach(l => redrawLayer(l));
                 state._pendingLayers.clear();
-            } else {
-                redraw();
             }
         });
     }
