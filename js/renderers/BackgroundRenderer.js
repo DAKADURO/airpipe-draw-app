@@ -112,10 +112,10 @@ function drawGrid(ctx, canvas, state) {
 
     if (isIso) {
         const step = gridStep;
-        const startX = Math.floor(left / step) * step - step * 5;
-        const endX = Math.ceil(right / step) * step + step * 5;
-        const startY = Math.floor(top / step) * step - step * 5;
-        const endY = Math.ceil(bottom / step) * step + step * 5;
+        const startX = Math.floor(left / step) * step - step * 20;
+        const endX = Math.ceil(right / step) * step + step * 20;
+        const startY = Math.floor(top / step) * step - step * 20;
+        const endY = Math.ceil(bottom / step) * step + step * 20;
 
         for (let x = startX; x <= endX; x += step) {
             const p1 = projectIso(x, startY);
@@ -145,9 +145,9 @@ function drawGrid(ctx, canvas, state) {
     ctx.lineWidth = 2 / s;
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     if (isIso) {
-        const p1 = projectIso(-1000, 0); const p2 = projectIso(1000, 0);
+        const p1 = projectIso(-10000, 0); const p2 = projectIso(10000, 0);
         ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
-        const p3 = projectIso(0, -1000); const p4 = projectIso(0, 1000);
+        const p3 = projectIso(0, -10000); const p4 = projectIso(0, 10000);
         ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
     } else {
         ctx.moveTo(0, top); ctx.lineTo(0, bottom);
