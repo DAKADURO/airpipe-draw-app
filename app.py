@@ -51,9 +51,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
-    "pool_recycle": 280, # Railway connections often timeout after 300s
+    "pool_recycle": 180,  # More aggressive recycling for cloud proxies
     "pool_size": 10,
-    "max_overflow": 20
+    "max_overflow": 20,
+    "pool_timeout": 30,   # Seconds to wait for a connection from the pool
+    "pool_use_lifo": True # Keeps the same few connections active
 }
 
 # Enable SQLite WAL mode for better concurrency
