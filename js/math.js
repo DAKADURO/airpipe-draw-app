@@ -279,3 +279,113 @@ export function getViewportWorldBounds() {
     const minY = Math.min(p0.y, p1.y, p2.y, p3.y), maxY = Math.max(p0.y, p1.y, p2.y, p3.y);
     return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
+
+/**
+ * Encuentra todos los elementos dentro de una caja de selección en pantalla.
+ */
+export function getItemsInScreenBox(box) {
+    const x = box.w > 0 ? box.x : box.x + box.w;
+    const y = box.h > 0 ? box.y : box.y + box.h;
+    const w = Math.abs(box.w);
+    const h = Math.abs(box.h);
+
+    const p0 = toWorld(x, y);
+    const p1 = toWorld(x + w, y);
+    const p2 = toWorld(x, y + h);
+    const p3 = toWorld(x + w, y + h);
+
+    const minX = Math.min(p0.x, p1.x, p2.x, p3.x);
+    const maxX = Math.max(p0.x, p1.x, p2.x, p3.x);
+    const minY = Math.min(p0.y, p1.y, p2.y, p3.y);
+    const maxY = Math.max(p0.y, p1.y, p2.y, p3.y);
+
+    const worldBox = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    const candidates = state.spatialIndex.search(worldBox);
+    const caught = [];
+
+    for (const cand of candidates) {
+        if (cand.tipo === 'bg_line') continue; // No seleccionar fondo
+
+        let isInside = false;
+        if (cand.tipo === 'linea') {
+            const screenP1 = toScreen(cand.datos.x1, cand.datos.y1, cand.datos.z1 || 0);
+            const screenP2 = toScreen(cand.datos.x2, cand.datos.y2, cand.datos.z2 || 0);
+            isInside = (screenP1.x >= x && screenP1.x <= x + w && screenP1.y >= y && screenP1.y <= y + h &&
+                        screenP2.x >= x && screenP2.x <= x + w && screenP2.y >= y && screenP2.y <= y + h);
+        } else if (cand.tipo === 'nodo' || cand.tipo === 'valvula_manual' || cand.tipo === 'nota' || cand.tipo === 'cota') {
+            const p = toScreen(cand.datos.x || cand.datos.x1, cand.datos.y || cand.datos.y1, cand.datos.z || cand.datos.z1 || 0);
+            isInside = (p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h);
+        }
+
+        if (isInside) caught.push(cand);
+    }
+    return caught;
+}
+
+/**
+ * Divide una línea en tramos si hay nodos o uniones intermedias.
+ */
+export function splitLineAtJunctions(lineItem) {
+    const { x1, y1, x2, y2 } = lineItem.datos;
+    const z1 = lineItem.datos.z1 || 0;
+    const z2 = lineItem.datos.z2 || 0;
+    
+    // Encontrar todos los nodos o extremos que caen sobre esta línea
+    const worldBox = { 
+        x: Math.min(x1, x2) - 1, y: Math.min(y1, y2) - 1, 
+        w: Math.abs(x1 - x2) + 2, h: Math.abs(y1 - y2) + 2 
+    };
+    
+    const candidates = state.spatialIndex.search(worldBox);
+    const splitPoints = [];
+
+    for (const cand of candidates) {
+        if (cand === lineItem || cand.tipo === 'bg_line' || cand.tipo === 'cota') continue;
+
+        let pts = [];
+        if (cand.tipo === 'linea') {
+            pts.push({ x: cand.datos.x1, y: cand.datos.y1, z: cand.datos.z1 || 0 });
+            pts.push({ x: cand.datos.x2, y: cand.datos.y2, z: cand.datos.z2 || 0 });
+        } else if (cand.tipo === 'nodo' || cand.tipo === 'valvula_manual') {
+            pts.push({ x: cand.datos.x, y: cand.datos.y, z: cand.datos.z || 0 });
+        }
+
+        for (const p of pts) {
+            // Verificar si el punto p está sobre el segmento (x1,y1,z1)-(x2,y2,z2)
+            const dStart = Math.hypot(p.x - x1, p.y - y1, p.z - z1);
+            const dEnd = Math.hypot(p.x - x2, p.y - y2, p.z - z2);
+            const lineLen = Math.hypot(x2 - x1, y2 - y1, z2 - z1);
+
+            if (dStart > 0.1 && dEnd > 0.1 && Math.abs((dStart + dEnd) - lineLen) < 0.1) {
+                // El punto está entre los extremos (no es un extremo propio)
+                if (!splitPoints.some(sp => Math.hypot(sp.x - p.x, sp.y - p.y, sp.z - p.z) < 0.1)) {
+                    splitPoints.push({ ...p, dist: dStart });
+                }
+            }
+        }
+    }
+
+    if (splitPoints.length === 0) return [lineItem];
+
+    // Ordenar puntos por distancia desde el inicio
+    splitPoints.sort((a, b) => a.dist - b.dist);
+
+    const segments = [];
+    let lastPt = { x: x1, y: y1, z: z1 };
+    
+    for (const sp of splitPoints) {
+        segments.push({
+            tipo: 'linea',
+            datos: { ...lineItem.datos, x1: lastPt.x, y1: lastPt.y, z1: lastPt.z, x2: sp.x, y2: sp.y, z2: sp.z }
+        });
+        lastPt = sp;
+    }
+    
+    // Último tramo
+    segments.push({
+        tipo: 'linea',
+        datos: { ...lineItem.datos, x1: lastPt.x, y1: lastPt.y, z1: lastPt.z, x2: x2, y2: y2, z2: z2 }
+    });
+
+    return segments;
+}
