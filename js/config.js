@@ -1,13 +1,13 @@
 export const API_BASE = ""; 
 
-export const COLOR_GRID = '#E0E0E0';
-export const COLOR_GRID_SUB = '#F5F5F5';
-export const COLOR_LINEA = '#005EAA';
-export const COLOR_LINEA_PREV = 'rgba(0, 94, 170, 0.45)';
-export const COLOR_COMPRESOR = '#424242';
-export const COLOR_CONSUMO = '#D32F2F';
-export const COLOR_COMPRESOR_BORDER = '#757575';
-export const COLOR_CONSUMO_BORDER = '#EF5350';
+export const COLOR_GRID = 'rgba(255, 255, 255, 0.05)';
+export const COLOR_GRID_SUB = 'rgba(255, 255, 255, 0.02)';
+export const COLOR_LINEA = '#00f2ff'; // Neón Cyan
+export const COLOR_LINEA_PREV = 'rgba(0, 242, 255, 0.4)';
+export const COLOR_COMPRESOR = '#7cfc00'; // Lawn Green (Muy visible)
+export const COLOR_CONSUMO = '#ff4d00';  // Neón Orange
+export const COLOR_COMPRESOR_BORDER = '#ffffff';
+export const COLOR_CONSUMO_BORDER = '#ffffff';
 
 export const GROSOR_LINEA = 3.5;
 export const RADIO_NODO = 10;

@@ -1,6 +1,6 @@
-import { MODO, PIXELS_POR_METRO, COLOR_LINEA } from '../config.js';
+import { MODO, PIXELS_POR_METRO, COLOR_LINEA, COLOR_LINEA_PREV, GROSOR_LINEA } from '../config.js';
 import { toScreen, getLineSnap } from '../math.js';
-import { drawLinea } from './NetworkRenderer.js';
+import { drawLineaInternal } from './NetworkRenderer.js';
 
 export function drawOverlay(ctx, canvas, state, layerType = 'all') {
     if (layerType === 'all' || layerType === 'active') {
@@ -9,7 +9,50 @@ export function drawOverlay(ctx, canvas, state, layerType = 'all') {
     
     if (layerType === 'all' || layerType === 'ui') {
         drawUIElements(ctx, canvas, state);
+        drawWorldCrosshair(ctx, canvas, state);
     }
+}
+
+function drawWorldCrosshair(ctx, canvas, state) {
+    if (!state.puntoMouse || state.isPanning) return;
+    
+    const isIso = state.viewState.isIsometric;
+    const { x, y, z } = state.puntoMouse;
+    const p = toScreen(x, y, z);
+    const s = 15;
+
+    ctx.save();
+    ctx.setLineDash([2, 2]);
+    ctx.lineWidth = 1;
+    
+    // Si estamos en ISO y hay elevación Z, dibujamos la proyección en el piso (Z=0)
+    if (isIso && Math.abs(z) > 0.1) {
+        const pFloor = toScreen(x, y, 0);
+        // Linea vertical de referencia
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(pFloor.x, pFloor.y);
+        ctx.stroke();
+        
+        // Cruz en el piso
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.beginPath();
+        ctx.moveTo(pFloor.x - s, pFloor.y); ctx.lineTo(pFloor.x + s, pFloor.y);
+        ctx.moveTo(pFloor.x, pFloor.y - s); ctx.lineTo(pFloor.x, pFloor.y + s);
+        ctx.stroke();
+    }
+
+    // Cruz en la posición real
+    ctx.setLineDash([]);
+    ctx.strokeStyle = COLOR_LINEA;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(p.x - s, p.y); ctx.lineTo(p.x + s, p.y);
+    ctx.moveTo(p.x, p.y - s); ctx.lineTo(p.x, p.y + s);
+    ctx.stroke();
+    
+    ctx.restore();
 }
 
 function drawActiveFeedback(ctx, canvas, state) {
@@ -158,6 +201,16 @@ function drawUIElements(ctx, canvas, state) {
 
     const cotas = state.historial.filter(a => a.tipo === 'cota');
     for (const c of cotas) renderCota(ctx, c.datos, false, state);
+}
+
+export function drawLinea(ctx, x1, y1, z1, x2, y2, z2, preview, color, state) {
+    ctx.save();
+    ctx.strokeStyle = preview ? COLOR_LINEA_PREV : (color || COLOR_LINEA);
+    // Garantizar que la línea sea visible en cualquier zoom (mínimo 3px reales)
+    ctx.lineWidth = Math.max(GROSOR_LINEA * state.viewState.scale, 3.0);
+    if (preview) ctx.setLineDash([6, 4]);
+    drawLineaInternal(ctx, x1, y1, z1, x2, y2, z2, state, state.viewState.isIsometric);
+    ctx.restore();
 }
 
 export function renderNota(ctx, x, y, z, texto, state) {

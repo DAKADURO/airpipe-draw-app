@@ -23,10 +23,14 @@ export function drawNetwork(ctx, canvas, state) {
         const z1 = accion.datos.z1 || 0;
         const z2 = accion.datos.z2 || 0;
 
-        // Optimized line draw (no redundant save/restore)
+        ctx.save();
         if (color) ctx.strokeStyle = color;
+        else {
+            ctx.shadowColor = COLOR_LINEA;
+            ctx.shadowBlur = 4;
+        }
         drawLineaInternal(ctx, x1, y1, z1, x2, y2, z2, state, isIso);
-        if (color) ctx.strokeStyle = COLOR_LINEA;
+        ctx.restore();
     }
     ctx.restore();
 
@@ -97,18 +101,18 @@ function drawCompresor(ctx, p, r) {
     ctx.fillStyle = COLOR_COMPRESOR;
     ctx.strokeStyle = COLOR_COMPRESOR_BORDER;
     ctx.lineWidth = 2.5;
+    
+    // Outer glow
+    ctx.shadowColor = COLOR_COMPRESOR;
+    ctx.shadowBlur = 10;
+
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fill(); ctx.stroke();
 
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r * 0.7, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.fillStyle = '#4FC3F7';
-    ctx.font = `bold 10px Inter, sans-serif`;
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#000000';
+    ctx.font = `bold 12px Inter, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('C', p.x, p.y);
@@ -120,13 +124,18 @@ function drawConsumo(ctx, p, r, dropSize) {
     ctx.fillStyle = COLOR_CONSUMO;
     ctx.strokeStyle = COLOR_CONSUMO_BORDER;
     ctx.lineWidth = 2;
+    
+    ctx.shadowColor = COLOR_CONSUMO;
+    ctx.shadowBlur = 8;
+
     const s = r * 0.8;
     ctx.beginPath();
     ctx.roundRect(p.x - s, p.y - s, s * 2, s * 2, 4);
     ctx.fill(); ctx.stroke();
 
+    ctx.shadowBlur = 0;
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = `bold 9px Inter, sans-serif`;
+    ctx.font = `bold 10px Inter, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('B', p.x, p.y);
