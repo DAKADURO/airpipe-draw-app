@@ -274,10 +274,35 @@ export function getCotaAt(screenX, screenY) {
 
 export function getViewportWorldBounds() {
     const { width, height } = state.canvasRect || { width: window.innerWidth, height: window.innerHeight };
-    const p0 = toWorld(0, 0), p1 = toWorld(width, 0), p2 = toWorld(0, height), p3 = toWorld(width, height);
-    const minX = Math.min(p0.x, p1.x, p2.x, p3.x), maxX = Math.max(p0.x, p1.x, p2.x, p3.x);
-    const minY = Math.min(p0.y, p1.y, p2.y, p3.y), maxY = Math.max(p0.y, p1.y, p2.y, p3.y);
-    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    const isIso = state.viewState.isIsometric;
+    
+    // En ISO, el viewport en el mundo depende de Z. 
+    // Calculamos los límites considerando el rango posible de alturas (0 a 10m)
+    // para no ocultar elementos que están más arriba o más abajo.
+    const zSamples = isIso ? [0, 5000, 10000] : [0];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    for (const z of zSamples) {
+        const corners = [
+            toWorld(0, 0, z),
+            toWorld(width, 0, z),
+            toWorld(0, height, z),
+            toWorld(width, height, z)
+        ];
+        for (const p of corners) {
+            minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+            minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+        }
+    }
+
+    // Margen de seguridad para evitar parpadeos en los bordes
+    const margin = 200 / state.viewState.scale;
+    return { 
+        x: minX - margin, 
+        y: minY - margin, 
+        w: (maxX - minX) + margin * 2, 
+        h: (maxY - minY) + margin * 2 
+    };
 }
 
 /**
