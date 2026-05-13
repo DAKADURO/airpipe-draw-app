@@ -133,7 +133,7 @@ export class SpatialIndex {
     }
 
     calculateGlobalBounds(elements, bgLines, bgScale) {
-        let minX = -1000, minY = -1000, maxX = 1000, maxY = 1000;
+        let minX = -2000, minY = -2000, maxX = 2000, maxY = 2000;
         
         for (const el of elements) {
             const b = this.getElementBounds(el);
@@ -144,16 +144,22 @@ export class SpatialIndex {
         }
         
         if (bgLines && bgLines instanceof Float32Array && bgLines.length > 0) {
-            // For performance, only check corners of the binary data
-            // (Assuming data is mostly contained within its reported bounds or we check the whole buffer)
-            for (let i = 0; i < bgLines.length; i += 400) { // Step to speed up
-                const x1 = bgLines[i] * bgScale, y1 = bgLines[i+1] * bgScale;
-                minX = Math.min(minX, x1); minY = Math.min(minY, y1);
-                maxX = Math.max(maxX, x1); maxY = Math.max(maxY, y1);
+            // Robust boundary detection: Check all points in the buffer
+            // For 200k lines (800k floats), this takes ~2ms.
+            for (let i = 0; i < bgLines.length; i += 2) { 
+                const val = bgLines[i] * bgScale;
+                if (i % 4 < 2) { // x coordinate
+                    if (val < minX) minX = val;
+                    if (val > maxX) maxX = val;
+                } else { // y coordinate
+                    if (val < minY) minY = val;
+                    if (val > maxY) maxY = val;
+                }
             }
         }
 
-        return { x: minX - 100, y: minY - 100, w: (maxX - minX) + 200, h: (maxY - minY) + 200 };
+        const w = maxX - minX, h = maxY - minY;
+        return { x: minX - 500, y: minY - 500, w: w + 1000, h: h + 1000 };
     }
 
     getElementBounds(el) {
