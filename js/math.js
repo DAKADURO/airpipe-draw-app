@@ -66,7 +66,7 @@ export function getSnapPoint(x, y, z = 0) {
         // El cand puede ser un objeto del historial o un bg_line generado por el indexer
         let pts = [];
         if (cand.tipo === 'linea' || cand.tipo === 'bg_line') {
-            pts.push({ x: cand.datos.x1, y: cand.datos.y, z: cand.datos.z1 || 0, t: 'ext' });
+            pts.push({ x: cand.datos.x1, y: cand.datos.y1, z: cand.datos.z1 || 0, t: 'ext' });
             pts.push({ x: cand.datos.x2, y: cand.datos.y2, z: cand.datos.z2 || 0, t: 'ext' });
             pts.push({ x: (cand.datos.x1 + cand.datos.x2)/2, y: (cand.datos.y1 + cand.datos.y2)/2, z: ((cand.datos.z1||0) + (cand.datos.z2||0))/2, t: 'mid' });
         } else if (cand.tipo === 'nodo' || cand.tipo === 'valvula_manual') {

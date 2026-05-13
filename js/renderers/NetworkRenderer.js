@@ -69,6 +69,22 @@ export function drawNetwork(ctx, canvas, state) {
             renderValvula(ctx, accion.datos.x, accion.datos.y, accion.datos.z || 0, accion.datos.angulo, '#FFC107', state);
         }
     }
+
+    // 6. Dibujar Puntos de Unión (Codos/Tes automáticos)
+    ctx.save();
+    ctx.fillStyle = COLOR_LINEA;
+    ctx.shadowColor = COLOR_LINEA;
+    ctx.shadowBlur = 5;
+    for (const accion of visibleElements) {
+        if (accion.tipo !== 'linea') continue;
+        // Solo dibujar círculos en los extremos para indicar unión
+        const p1 = toScreen(accion.datos.x1, accion.datos.y1, accion.datos.z1 || 0, state);
+        const p2 = toScreen(accion.datos.x2, accion.datos.y2, accion.datos.z2 || 0, state);
+        
+        ctx.beginPath(); ctx.arc(p1.x, p1.y, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(p2.x, p2.y, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
 }
 
 export function drawLineaInternal(ctx, x1, y1, z1, x2, y2, z2, state, isIso) {
