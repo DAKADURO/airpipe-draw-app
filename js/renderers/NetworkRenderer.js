@@ -75,7 +75,6 @@ export function drawLineaInternal(ctx, x1, y1, z1, x2, y2, z2, state, isIso) {
     if (!isIso) {
         const dz = (z2 || 0) - (z1 || 0);
         if (Math.abs(x1 - x2) < 0.1 && Math.abs(y1 - y2) < 0.1 && Math.abs(dz) > 0.1) {
-            // Riser vertical en 2D
             const p = toScreen(x1, y1, z1, state);
             const r = 6;
             ctx.beginPath();
@@ -90,10 +89,24 @@ export function drawLineaInternal(ctx, x1, y1, z1, x2, y2, z2, state, isIso) {
     }
     const p1 = toScreen(x1, y1, z1, state);
     const p2 = toScreen(x2, y2, z2, state);
+    
+    // Dibujo de tubería con núcleo blanco (Premium Look)
+    const originalStroke = ctx.strokeStyle;
+    const originalWidth = ctx.lineWidth;
+
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
     ctx.stroke();
+
+    // Nucleo blanco para efecto de brillo/tubería
+    ctx.save();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = originalWidth * 0.4;
+    ctx.globalAlpha = 0.6;
+    ctx.stroke();
+    ctx.restore();
 }
 
 function drawCompresor(ctx, p, r) {

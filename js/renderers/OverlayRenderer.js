@@ -205,10 +205,19 @@ function drawUIElements(ctx, canvas, state) {
 
 export function drawLinea(ctx, x1, y1, z1, x2, y2, z2, preview, color, state) {
     ctx.save();
-    ctx.strokeStyle = preview ? COLOR_LINEA_PREV : (color || COLOR_LINEA);
-    // Garantizar que la línea sea visible en cualquier zoom (mínimo 3px reales)
+    
+    if (preview) {
+        ctx.strokeStyle = '#ffffff'; // Blanco para máxima visibilidad en preview
+        ctx.shadowColor = COLOR_LINEA;
+        ctx.shadowBlur = 10;
+        ctx.setLineDash([8, 4]);
+    } else {
+        ctx.strokeStyle = color || COLOR_LINEA;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.shadowBlur = 4;
+    }
+
     ctx.lineWidth = Math.max(GROSOR_LINEA * state.viewState.scale, 3.0);
-    if (preview) ctx.setLineDash([6, 4]);
     drawLineaInternal(ctx, x1, y1, z1, x2, y2, z2, state, state.viewState.isIsometric);
     ctx.restore();
 }
