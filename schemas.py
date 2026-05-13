@@ -4,8 +4,10 @@ from typing import List, Optional, Any
 class Linea(BaseModel):
     x1: float
     y1: float
+    z1: Optional[float] = 0.0
     x2: float
     y2: float
+    z2: Optional[float] = 0.0
     diametro: Optional[str] = None
     model_config = ConfigDict(extra='allow')
 
@@ -13,11 +15,13 @@ class Nodo(BaseModel):
     tipo: str
     x: float
     y: float
+    z: Optional[float] = 0.0
     model_config = ConfigDict(extra='allow')
 
 class ValvulaManual(BaseModel):
     x: float
     y: float
+    z: Optional[float] = 0.0
     angulo: float
     diametro: Optional[str] = None
     model_config = ConfigDict(extra='allow')
@@ -37,6 +41,6 @@ class ProcesarRequest(BaseModel):
     tipo_red: Optional[str] = "lineal"
     caudal_scfm: Optional[float] = 0.0
     is_isometric: Optional[bool] = False
-    bgLines: Optional[List[dict]] = Field(default_factory=list)
+    bgLines: Optional[Any] = Field(default_factory=list)
     bgScale: Optional[float] = 1.0
     model_config = ConfigDict(extra='allow')

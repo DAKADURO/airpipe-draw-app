@@ -18,7 +18,12 @@ def procesar():
     try:
         req = ProcesarRequest.model_validate(datos)
     except ValidationError as e:
-        return jsonify({"error": "Error de validacion en la estructura de datos", "details": e.errors()}), 422
+        print(f"DEBUG Validation Error: {e.errors()}")
+        return jsonify({
+            "error": "Error de validacion en la estructura de datos", 
+            "details": e.errors(),
+            "received_keys": list(datos.keys()) if isinstance(datos, dict) else "not a dict"
+        }), 422
 
     try:
         plano = {
@@ -29,7 +34,7 @@ def procesar():
             "caudal_scfm": req.caudal_scfm or 0,
             "tipo_red":    req.tipo_red or "lineal",
             "is_isometric": req.is_isometric or False,
-            "bgLines": req.bgLines or [],
+            "bgLines": req.bgLines,
             "bgScale": req.bgScale or 1.0
         }
 
