@@ -33,8 +33,8 @@ export function initCanvasEvents(c) {
     function resizeCanvas() {
         const container = document.getElementById('canvas-wrapper');
         if (!container) return;
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight;
+        c.width = container.clientWidth;
+        c.height = container.clientHeight;
         scheduleRedraw();
     }
     window.addEventListener('resize', resizeCanvas);
@@ -44,7 +44,7 @@ export function initCanvasEvents(c) {
     const lengthInput = document.getElementById('length-input');
     
     function extractMouseEventData(e) {
-        const rect = canvas.getBoundingClientRect();
+        const rect = c.getBoundingClientRect();
         const rawX = e.clientX - rect.left;
         const rawY = e.clientY - rect.top;
         const currentZ = state.viewState.isIsometric ? (state.viewState.currentZ || 0) : 0;
@@ -144,20 +144,20 @@ export function initCanvasEvents(c) {
         };
     }
 
-    canvas.addEventListener('mousedown', (e) => {
+    c.addEventListener('mousedown', (e) => {
         if (e.button !== 0 && e.button !== 1) return; // Allow left and middle click ONLY
         
         if (e.button === 1 || state._spacePressed) {
             state.isPanning = true;
             state.lastMouse = { x: e.clientX, y: e.clientY };
-            canvas.style.cursor = 'grabbing';
+            c.style.cursor = 'grabbing';
             return;
         }
 
         if (state.modoActual === MODO.PAN) {
             state.isPanning = true;
             state.lastMouse = { x: e.clientX, y: e.clientY };
-            canvas.style.cursor = 'grabbing';
+            c.style.cursor = 'grabbing';
             return;
         }
 
@@ -165,7 +165,7 @@ export function initCanvasEvents(c) {
         ToolManager.handleEvent('onMouseDown', e, data);
     });
 
-    canvas.addEventListener('mousemove', (e) => {
+    c.addEventListener('mousemove', (e) => {
         if (state.isPanning) {
             const dx = e.clientX - state.lastMouse.x;
             const dy = e.clientY - state.lastMouse.y;
@@ -198,7 +198,7 @@ export function initCanvasEvents(c) {
     window.addEventListener('mouseup', (e) => {
         if (state.isPanning) {
             state.isPanning = false;
-            canvas.style.cursor = getModeCursor(state.modoActual);
+            c.style.cursor = getModeCursor(state.modoActual);
             return;
         }
 
@@ -211,7 +211,7 @@ export function initCanvasEvents(c) {
         ToolManager.handleEvent('onMouseUp', e, data);
     });
 
-    canvas.addEventListener('click', (e) => {
+    c.addEventListener('click', (e) => {
         if (state.isPanning) return; // Prevent spurious clicks while panning
         
         const data = extractMouseEventData(e);
@@ -224,7 +224,7 @@ export function initCanvasEvents(c) {
     let touchStartY = 0;
     let touchStartTime = 0;
 
-    canvas.addEventListener('touchstart', (e) => {
+    c.addEventListener('touchstart', (e) => {
         e.preventDefault(); // Evita mouse events nativos y gestures indeseadas
 
         if (e.touches.length === 2) {
@@ -258,7 +258,7 @@ export function initCanvasEvents(c) {
         }
     }, {passive: false});
 
-    canvas.addEventListener('touchmove', (e) => {
+    c.addEventListener('touchmove', (e) => {
         e.preventDefault(); 
         if (e.touches.length === 2) {
             const t1 = e.touches[0];
@@ -272,7 +272,7 @@ export function initCanvasEvents(c) {
                 newScale = Math.max(0.001, Math.min(newScale, 100.0));
                 
                 const realZoomFactor = newScale / state.viewState.scale;
-                const rect = canvas.getBoundingClientRect();
+                const rect = c.getBoundingClientRect();
                 const mouseX = currentCenter.x - rect.left;
                 const mouseY = currentCenter.y - rect.top;
                 
@@ -325,7 +325,7 @@ export function initCanvasEvents(c) {
         }
     }, {passive: false});
 
-    canvas.addEventListener('touchend', (e) => {
+    c.addEventListener('touchend', (e) => {
         e.preventDefault();
 
         if (state.isPanning && e.touches.length === 0) {
@@ -352,9 +352,9 @@ export function initCanvasEvents(c) {
     });
     // --- FIN SOPORTE TOUCH ---
 
-    canvas.addEventListener('wheel', (e) => {
+    c.addEventListener('wheel', (e) => {
         e.preventDefault();
-        const rect = canvas.getBoundingClientRect();
+        const rect = c.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
@@ -385,11 +385,11 @@ export function initCanvasEvents(c) {
                 }
                 lengthInput.value = '';
                 lengthInput.style.display = 'none';
-                canvas.focus();
+                c.focus();
             } else if (e.key === 'Escape') {
                 lengthInput.value = '';
                 lengthInput.style.display = 'none';
-                canvas.focus();
+                c.focus();
                 e.stopPropagation();
             }
         });
@@ -399,7 +399,7 @@ export function initCanvasEvents(c) {
         if (e.code === 'Space' && !state._spacePressed) {
             if (document.activeElement.tagName !== 'INPUT') {
                 state._spacePressed = true;
-                canvas.style.cursor = 'grab';
+                c.style.cursor = 'grab';
                 e.preventDefault();
             }
         }
