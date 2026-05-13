@@ -133,7 +133,8 @@ export class SpatialIndex {
     }
 
     calculateGlobalBounds(elements, bgLines, bgScale) {
-        let minX = -2000, minY = -2000, maxX = 2000, maxY = 2000;
+        // Límites base más amplios para evitar truncamiento
+        let minX = -10000, minY = -10000, maxX = 10000, maxY = 10000;
         
         for (const el of elements) {
             const b = this.getElementBounds(el);
@@ -144,45 +145,50 @@ export class SpatialIndex {
         }
         
         if (bgLines && bgLines instanceof Float32Array && bgLines.length > 0) {
-            // Robust boundary detection: Check all points in the buffer
-            // For 200k lines (800k floats), this takes ~2ms.
             for (let i = 0; i < bgLines.length; i += 2) { 
                 const val = bgLines[i] * bgScale;
-                if (i % 4 < 2) { // x coordinate
-                    if (val < minX) minX = val;
-                    if (val > maxX) maxX = val;
-                } else { // y coordinate
-                    if (val < minY) minY = val;
-                    if (val > maxY) maxY = val;
+                if (i % 4 < 2) { // x
+                    if (val < minX) minX = val; if (val > maxX) maxX = val;
+                } else { // y
+                    if (val < minY) minY = val; if (val > maxY) maxY = val;
                 }
             }
         }
 
         const w = maxX - minX, h = maxY - minY;
-        return { x: minX - 500, y: minY - 500, w: w + 1000, h: h + 1000 };
+        // Margen extra generoso (2000 unidades) para evitar cualquier error de borde
+        return { x: minX - 1000, y: minY - 1000, w: w + 2000, h: h + 2000 };
     }
 
     getElementBounds(el) {
         if (el.tipo === 'linea') {
             const x = Math.min(el.datos.x1, el.datos.x2);
             const y = Math.min(el.datos.y1, el.datos.y2);
-            const w = Math.abs(el.datos.x1 - el.datos.x2) || 0.1;
-            const h = Math.abs(el.datos.y1 - el.datos.y2) || 0.1;
-            return { x: x - 2, y: y - 2, w: w + 4, h: h + 4 };
+            const w = Math.abs(el.datos.x1 - el.datos.x2);
+            const h = Math.abs(el.datos.y1 - el.datos.y2);
+            // Añadir un margen de "grosor" virtual para que el QuadTree los encuentre siempre
+            return { x: x - 20, y: y - 20, w: w + 40, h: h + 40 };
         }
         if (el.tipo === 'nodo' || el.tipo === 'valvula_manual' || el.tipo === 'nota') {
-            return { x: el.datos.x - 10, y: el.datos.y - 10, w: 20, h: 20 };
+            return { x: el.datos.x - 50, y: el.datos.y - 50, w: 100, h: 100 };
         }
         if (el.tipo === 'cota') {
             const x = Math.min(el.datos.x1, el.datos.x2), y = Math.min(el.datos.y1, el.datos.y2);
-            const w = Math.abs(el.datos.x1 - el.datos.x2) || 0.1, h = Math.abs(el.datos.y1 - el.datos.y2) || 0.1;
-            return { x: x - 50, y: y - 50, w: w + 100, h: h + 100 };
+            const w = Math.abs(el.datos.x1 - el.datos.x2), h = Math.abs(el.datos.y1 - el.datos.y2);
+            return { x: x - 100, y: y - 100, w: w + 200, h: h + 200 };
         }
         return null;
     }
 
     search(range) {
         if (!this.tree) return [];
-        return this.tree.query(range);
+        // Expandimos el rango de búsqueda un poco para asegurar que traiga todo lo visible
+        const expandedRange = {
+            x: range.x - 100,
+            y: range.y - 100,
+            w: range.w + 200,
+            h: range.h + 200
+        };
+        return this.tree.query(expandedRange);
     }
 }
