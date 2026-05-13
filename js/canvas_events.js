@@ -1,6 +1,6 @@
 import { state, invalidateSnapCache } from './state.js';
 import { toWorld, toScreen, getLineSnap, getSnapPoint, getAngleSnapPoint, getSmartSnap } from './math.js';
-import { redraw, scheduleRedraw, canvas } from './drawing.js';
+import { redraw, scheduleRedraw, canvases } from './drawing.js';
 import { MODO, PIXELS_POR_METRO } from './config.js';
 import { ToolManager } from './tools/ToolManager.js';
 // import { setModoGlobal } from './main.js'; // Eliminated, was causing SyntaxError crash
@@ -453,7 +453,9 @@ export function initCanvasEvents(c) {
     document.addEventListener('keyup', (e) => {
         if (e.code === 'Space') {
             state._spacePressed = false;
-            canvas.style.cursor = getModeCursor(state.modoActual);
+            if (canvases['mainCanvas']) {
+                canvases['mainCanvas'].style.cursor = getModeCursor(state.modoActual);
+            }
         }
     });
 
