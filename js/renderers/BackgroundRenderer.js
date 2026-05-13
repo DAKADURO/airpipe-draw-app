@@ -1,13 +1,13 @@
 import { COLOR_GRID_CAD, COLOR_GRID_SUB_CAD, PASO_GRID, PIXELS_POR_METRO, COLOR_FONDO_CAD } from '../config.js';
 import { toWorld, projectIso } from '../math.js';
 
-let cachedBgLines = null;
+let cachedBgData = null;
 let cachedIsoState = null;
 let cachedScale = null;
 let cachedPath2D = null;
 
 export function drawBackground(ctx, canvas, state) {
-    // Fondo AutoCAD (Antigris)
+    // 1. Fondo sólido
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = COLOR_FONDO_CAD;
@@ -18,8 +18,10 @@ export function drawBackground(ctx, canvas, state) {
     ctx.translate(state.viewState.offsetX, state.viewState.offsetY);
     ctx.scale(state.viewState.scale, state.viewState.scale);
 
+    // 2. Grilla Dinámica
     drawGrid(ctx, canvas, state);
 
+    // 3. Imagen de Fondo
     if (state.bgImageObj) {
         ctx.save();
         ctx.globalAlpha = state.bgOpacity;
@@ -27,69 +29,66 @@ export function drawBackground(ctx, canvas, state) {
         ctx.restore();
     }
 
-    if (state.bgLines && state.bgLines.length > 0) {
-        ctx.save();
-        ctx.strokeStyle = '#607D8B';
-        ctx.fillStyle = '#607D8B';
-        ctx.globalAlpha = state.bgOpacity;
-        ctx.lineWidth = 1 / state.viewState.scale;
-        
-        // --- Optimización: Caché Path2D ---
-        if (cachedBgLines !== state.bgLines || 
-            cachedIsoState !== state.viewState.isIsometric || 
-            cachedScale !== state.bgScale) {
-            
-            cachedBgLines = state.bgLines;
-            cachedIsoState = state.viewState.isIsometric;
-            cachedScale = state.bgScale;
-            cachedPath2D = new Path2D();
+    // 4. Líneas Vectoriales (DXF) - Soporta tanto Array como Float32Array (Binario)
+    if (state.bgLines && (state.bgLines.length > 0 || (state.bgLines.byteLength && state.bgLines.length > 0))) {
+        drawVectorBackground(ctx, state);
+    }
+    ctx.restore();
+}
 
+function drawVectorBackground(ctx, state) {
+    ctx.save();
+    ctx.strokeStyle = '#607D8B';
+    ctx.globalAlpha = state.bgOpacity;
+    ctx.lineWidth = 1 / state.viewState.scale;
+    
+    // Si la referencia del objeto de datos cambió, regeneramos el Path2D
+    if (cachedBgData !== state.bgLines || cachedIsoState !== state.viewState.isIsometric || cachedScale !== state.bgScale) {
+        cachedBgData = state.bgLines;
+        cachedIsoState = state.viewState.isIsometric;
+        cachedScale = state.bgScale;
+        cachedPath2D = new Path2D();
+
+        const isIso = state.viewState.isIsometric;
+        const s = state.bgScale;
+
+        if (state.bgLines instanceof Float32Array) {
+            // OPTIMIZACIÓN BINARIA: Iterar sobre el buffer continuo [x1, y1, x2, y2, ...]
+            for (let i = 0; i < state.bgLines.length; i += 4) {
+                const x1 = state.bgLines[i] * s;
+                const y1 = state.bgLines[i+1] * s;
+                const x2 = state.bgLines[i+2] * s;
+                const y2 = state.bgLines[i+3] * s;
+
+                if (isIso) {
+                    const p1 = projectIso(x1, y1, 0);
+                    const p2 = projectIso(x2, y2, 0);
+                    cachedPath2D.moveTo(p1.x, p1.y);
+                    cachedPath2D.lineTo(p2.x, p2.y);
+                } else {
+                    cachedPath2D.moveTo(x1, y1);
+                    cachedPath2D.lineTo(x2, y2);
+                }
+            }
+        } else {
+            // Fallback para arrays de objetos (compatibilidad)
             for (const l of state.bgLines) {
                 if (l.type === 'text') continue;
-                const x1 = l.x1 * state.bgScale;
-                const y1 = l.y1 * state.bgScale;
-                const x2 = l.x2 * state.bgScale;
-                const y2 = l.y2 * state.bgScale;
-                
-                let p1x = x1, p1y = y1, p2x = x2, p2y = y2;
-                if (state.viewState.isIsometric) {
-                    const p1 = projectIso(x1, y1, 0);
-                    p1x = p1.x; p1y = p1.y;
-                    const p2 = projectIso(x2, y2, 0);
-                    p2x = p2.x; p2y = p2.y;
+                const p1x = l.x1 * s, p1y = l.y1 * s, p2x = l.x2 * s, p2y = l.y2 * s;
+                if (isIso) {
+                    const p1 = projectIso(p1x, p1y, 0);
+                    const p2 = projectIso(p2x, p2y, 0);
+                    cachedPath2D.moveTo(p1.x, p1.y);
+                    cachedPath2D.lineTo(p2.x, p2.y);
+                } else {
+                    cachedPath2D.moveTo(p1x, p1y);
+                    cachedPath2D.lineTo(p2x, p2y);
                 }
-                
-                cachedPath2D.moveTo(p1x, p1y);
-                cachedPath2D.lineTo(p2x, p2y);
             }
         }
-        
-        ctx.stroke(cachedPath2D);
-
-        // Renderizar textos
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'bottom';
-        for (const l of state.bgLines) {
-            if (l.type === 'text') {
-                const x = l.x * state.bgScale;
-                const y = l.y * state.bgScale;
-                const h = l.h * state.bgScale;
-                
-                let pX = x, pY = y;
-                if (state.viewState.isIsometric) {
-                    const p = projectIso(x, y, 0);
-                    pX = p.x; pY = p.y;
-                }
-                
-                // Evitar fuentes demasiado pequeñas
-                const fontSize = Math.max(h, 0.1); 
-                ctx.font = `${fontSize}px Arial, sans-serif`;
-                ctx.fillText(l.text, pX, pY);
-            }
-        }
-        
-        ctx.restore();
     }
+    
+    ctx.stroke(cachedPath2D);
     ctx.restore();
 }
 
@@ -97,103 +96,62 @@ function drawGrid(ctx, canvas, state) {
     const s = state.viewState.scale;
     const isIso = state.viewState.isIsometric;
 
-    if (isIso) {
-        ctx.save();
-        ctx.strokeStyle = COLOR_GRID_CAD;
-        ctx.lineWidth = 0.5 / s;
-        ctx.beginPath();
-        
-        const worldCenter = toWorld(canvas.width / 2, canvas.height / 2, 0, state);
-        const centerX = Math.round(worldCenter.x / PASO_GRID) * PASO_GRID;
-        const centerY = Math.round(worldCenter.y / PASO_GRID) * PASO_GRID;
-        
-        const range = 10000;
-        const step = PASO_GRID;
-        
-        for (let i = -range; i <= range; i += step) {
-            const v1 = { x: centerX - range, y: centerY + i };
-            const v2 = { x: centerX + range, y: centerY + i };
-            const p1 = projectIso(v1.x, v1.y, 0);
-            const p2 = projectIso(v2.x, v2.y, 0);
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            
-            const v3 = { x: centerX + i, y: centerY - range };
-            const v4 = { x: centerX + i, y: centerY + range };
-            const p3 = projectIso(v3.x, v3.y, 0);
-            const p4 = projectIso(v4.x, v4.y, 0);
-            ctx.moveTo(p3.x, p3.y);
-            ctx.lineTo(p4.x, p4.y);
-        }
-        ctx.stroke();
-        ctx.restore();
-        return;
-    }
-
-    const left = -state.viewState.offsetX / s;
-    const top = -state.viewState.offsetY / s;
-    const right = (canvas.width - state.viewState.offsetX) / s;
-    const bottom = (canvas.height - state.viewState.offsetY) / s;
+    // Viewport bounds en world coordinates
+    const viewport = state._currentViewport || { x: -state.viewState.offsetX/s, y: -state.viewState.offsetY/s, w: canvas.width/s, h: canvas.height/s };
+    const { x: left, y: top, w, h } = viewport;
+    const right = left + w;
+    const bottom = top + h;
 
     let gridStep = PASO_GRID;
-    while (gridStep * s < 20) gridStep *= 2;
-
-    const startX = Math.floor(left / gridStep) * gridStep;
-    const startY = Math.floor(top / gridStep) * gridStep;
-
-    const thinLine = 1 / s; 
+    while (gridStep * s < 25) gridStep *= 2; 
 
     ctx.save();
     ctx.strokeStyle = COLOR_GRID_CAD;
-    ctx.lineWidth = thinLine;
+    ctx.lineWidth = 0.5 / s;
     ctx.beginPath();
-    for (let x = startX; x <= right; x += gridStep) {
-        ctx.moveTo(x, top);
-        ctx.lineTo(x, bottom);
-    }
-    for (let y = startY; y <= bottom; y += gridStep) {
-        ctx.moveTo(left, y);
-        ctx.lineTo(right, y);
+
+    if (isIso) {
+        const step = gridStep;
+        const startX = Math.floor(left / step) * step - step * 5;
+        const endX = Math.ceil(right / step) * step + step * 5;
+        const startY = Math.floor(top / step) * step - step * 5;
+        const endY = Math.ceil(bottom / step) * step + step * 5;
+
+        for (let x = startX; x <= endX; x += step) {
+            const p1 = projectIso(x, startY);
+            const p2 = projectIso(x, endY);
+            ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+        }
+        for (let y = startY; y <= endY; y += step) {
+            const p1 = projectIso(startX, y);
+            const p2 = projectIso(endX, y);
+            ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+        }
+    } else {
+        const startX = Math.floor(left / gridStep) * gridStep;
+        const startY = Math.floor(top / gridStep) * gridStep;
+
+        for (let x = startX; x <= right; x += gridStep) {
+            ctx.moveTo(x, top); ctx.lineTo(x, bottom);
+        }
+        for (let y = startY; y <= bottom; y += gridStep) {
+            ctx.moveTo(left, y); ctx.lineTo(right, y);
+        }
     }
     ctx.stroke();
 
-    if (gridStep * s > 50) {
-        ctx.strokeStyle = COLOR_GRID_SUB_CAD;
-        ctx.beginPath();
-        for (let x = startX; x <= right; x += gridStep) {
-            ctx.moveTo(x + gridStep / 2, top);
-            ctx.lineTo(x + gridStep / 2, bottom);
-        }
-        for (let y = startY; y <= bottom; y += gridStep) {
-            ctx.moveTo(left, y + gridStep / 2);
-            ctx.lineTo(right, y + gridStep / 2);
-        }
-        ctx.stroke();
-    }
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.font = `${10 / s}px Consolas, monospace`;
-    for (let x = startX; x <= right; x += gridStep) {
-        if (Math.abs(x % PIXELS_POR_METRO) < 0.1) {
-            ctx.fillText(`${Math.round(x / PIXELS_POR_METRO)}m`, x + 2 / s, top + 12 / s);
-        }
-    }
-    for (let y = startY; y <= bottom; y += gridStep) {
-        if (Math.abs(y % PIXELS_POR_METRO) < 0.1) {
-            ctx.fillText(`${Math.round(y / PIXELS_POR_METRO)}m`, left + 2 / s, y - 2 / s);
-        }
-    }
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.lineWidth = 2 / s;
+    // Ejes principales
     ctx.beginPath();
-    if (left <= 0 && right >= 0) {
-        ctx.moveTo(0, Math.max(0, top));
-        ctx.lineTo(0, bottom);
-    }
-    if (top <= 0 && bottom >= 0) {
-        ctx.moveTo(Math.max(0, left), 0);
-        ctx.lineTo(right, 0);
+    ctx.lineWidth = 2 / s;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    if (isIso) {
+        const p1 = projectIso(-1000, 0); const p2 = projectIso(1000, 0);
+        ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+        const p3 = projectIso(0, -1000); const p4 = projectIso(0, 1000);
+        ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
+    } else {
+        ctx.moveTo(0, top); ctx.lineTo(0, bottom);
+        ctx.moveTo(left, 0); ctx.lineTo(right, 0);
     }
     ctx.stroke();
     ctx.restore();

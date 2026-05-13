@@ -2,160 +2,122 @@ import ezdxf
 import ezdxf.path
 import tempfile
 import os
+import sys
+import math
+
+# Aumentar limite de recursion
+sys.setrecursionlimit(10000)
 
 def dxf_a_lineas_json(dxf_content: bytes) -> list[dict]:
-    """
-    Convierte un archivo DXF en una lista de líneas {x1, y1, x2, y2} 
-    para ser usadas como fondo en el canvas.
-    Aplica escala inteligente para manejar la discrepancia entre unidades declaradas y reales.
-    """
     try:
+        print(f"\n--- PROCESANDO DXF ({len(dxf_content) / 1024 / 1024:.1f} MB) ---")
+        
         with tempfile.NamedTemporaryFile(suffix='.dxf', delete=False) as tmp:
             tmp.write(dxf_content)
             tmp_path = tmp.name
 
         try:
             doc = ezdxf.readfile(tmp_path)
+        except Exception as e:
+            print(f"ERROR ezdxf: {e}")
+            return []
         finally:
-            os.unlink(tmp_path)
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
         msp = doc.modelspace()
         
-        # --- Pre-análisis para escala inteligente ---
-        # Algunos archivos dicen "mm" pero están dibujados en "m"
+        # --- Análisis de Escala Inteligente ---
         insunits = doc.header.get('$INSUNITS', 0)
-        
-        # Obtener límites del modelo para decidir
         try:
+            # bbox puede tardar en archivos gigantes, pero es necesario
             bbox = ezdxf.bbox.extents(msp)
             max_dim = max(bbox.size.x, bbox.size.y) if bbox.has_data else 0
-        except Exception:
+            print(f"DEBUG: Dimension maxima detectada: {max_dim:.2f} unidades")
+        except:
             max_dim = 0
 
-        # Factores de conversión a metros
-        factors = {
-            1: 0.0254,   # Pulgadas
-            2: 0.3048,   # Pies
-            4: 0.001,    # Milímetros
-            5: 0.01,     # Centímetros
-            6: 1.0,      # Metros
-        }
-        
+        factors = {1: 0.0254, 2: 0.3048, 4: 0.001, 5: 0.01, 6: 1.0}
         unit_to_meter = factors.get(insunits, 1.0)
         
-        # HEURÍSTICA: Si el archivo dice ser mm (4) pero las dimensiones son pequeñas (< 2000),
-        # es casi seguro que el usuario dibujó en metros ignorando la unidad del template.
-        if insunits == 4 and max_dim < 2000:
-            unit_to_meter = 1.0
+        # Heurística: si no hay unidades y el plano es enorme, probablemente son mm
+        if insunits == 0 and max_dim > 5000:
+            unit_to_meter = 0.001
+            print("DEBUG: Plano sin unidades pero muy grande. Asumiendo Milímetros.")
         
-        # Si no hay unidades (0), asumimos metros si las dimensiones son razonables
-        if insunits == 0:
-            if max_dim > 5000: # Probablemente mm
-                unit_to_meter = 0.001
-            else:
-                unit_to_meter = 1.0
-
         PIXELS_PER_METER = 100
         SCALE = unit_to_meter * PIXELS_PER_METER
+        print(f"DEBUG: Escala aplicada: {SCALE:.4f}")
 
         lineas = []
+        MAX_LINES = 500000 
+        
+        def extract_lines_from_entity(entity, depth=0):
+            if len(lineas) >= MAX_LINES or depth > 8:
+                return
 
-        def extract_lines_from_entity(entity):
             dxftype = entity.dxftype()
             
             if dxftype == 'LINE':
                 lineas.append({
-                    'x1': round(entity.dxf.start.x * SCALE, 3),
-                    'y1': round(entity.dxf.start.y * SCALE, 3),
-                    'x2': round(entity.dxf.end.x * SCALE, 3),
-                    'y2': round(entity.dxf.end.y * SCALE, 3)
+                    'x1': round(entity.dxf.start.x * SCALE, 2),
+                    'y1': round(entity.dxf.start.y * SCALE, 2),
+                    'x2': round(entity.dxf.end.x * SCALE, 2),
+                    'y2': round(entity.dxf.end.y * SCALE, 2)
                 })
             elif dxftype in ('LWPOLYLINE', 'POLYLINE'):
-                pts = list(entity.get_points('xy'))
-                for i in range(len(pts) - 1):
-                    lineas.append({
-                        'x1': round(pts[i][0] * SCALE, 3),
-                        'y1': round(pts[i][1] * SCALE, 3),
-                        'x2': round(pts[i+1][0] * SCALE, 3),
-                        'y2': round(pts[i+1][1] * SCALE, 3)
-                    })
-                if entity.is_closed and len(pts) > 2:
-                    lineas.append({
-                        'x1': round(pts[-1][0] * SCALE, 3),
-                        'y1': round(pts[-1][1] * SCALE, 3),
-                        'x2': round(pts[0][0] * SCALE, 3),
-                        'y2': round(pts[0][1] * SCALE, 3)
-                    })
+                try:
+                    pts = list(entity.get_points('xy'))
+                    for i in range(len(pts) - 1):
+                        if len(lineas) >= MAX_LINES: break
+                        lineas.append({
+                            'x1': round(pts[i][0] * SCALE, 2),
+                            'y1': round(pts[i][1] * SCALE, 2),
+                            'x2': round(pts[i+1][0] * SCALE, 2),
+                            'y2': round(pts[i+1][1] * SCALE, 2)
+                        })
+                except: pass
             elif dxftype == 'INSERT':
                 try:
                     for v_ent in entity.virtual_entities():
-                        extract_lines_from_entity(v_ent)
-                except Exception:
-                    pass
-            elif dxftype in ('ARC', 'CIRCLE', 'ELLIPSE', 'SPLINE'):
+                        extract_lines_from_entity(v_ent, depth + 1)
+                        if len(lineas) >= MAX_LINES: break
+                except: pass
+            elif dxftype in ('ARC', 'CIRCLE'):
                 try:
                     p = ezdxf.path.make_path(entity)
-                    pts = list(p.flattening(distance=0.1))
+                    pts = list(p.flattening(distance=1.0))
                     for i in range(len(pts) - 1):
+                        if len(lineas) >= MAX_LINES: break
                         lineas.append({
-                            'x1': round(pts[i].x * SCALE, 3),
-                            'y1': round(pts[i].y * SCALE, 3),
-                            'x2': round(pts[i+1].x * SCALE, 3),
-                            'y2': round(pts[i+1].y * SCALE, 3)
+                            'x1': round(pts[i].x * SCALE, 2), 'y1': round(pts[i].y * SCALE, 2),
+                            'x2': round(pts[i+1].x * SCALE, 2), 'y2': round(pts[i+1].y * SCALE, 2)
                         })
-                except Exception:
-                    pass
-            elif dxftype in ('TEXT', 'MTEXT'):
-                try:
-                    text_str = entity.dxf.text if dxftype == 'TEXT' else entity.text
-                    if text_str:
-                        # MTEXT sometimes has complex formatting, we just take raw text or simplifed
-                        # ezdxf allows entity.text for MTEXT which gives the plain text
-                        h = getattr(entity.dxf, 'height', 0.2)
-                        # The insert point is the location
-                        insert = entity.dxf.insert
-                        lineas.append({
-                            'type': 'text',
-                            'text': str(text_str),
-                            'x': round(insert.x * SCALE, 3),
-                            'y': round(insert.y * SCALE, 3),
-                            'h': round(h * SCALE, 3)
-                        })
-                except Exception:
-                    pass
+                except: pass
 
         for entity in msp:
+            if len(lineas) >= MAX_LINES: break
             extract_lines_from_entity(entity)
 
         if not lineas:
+            print("DEBUG: El plano no contenia lineas validas.")
             return []
             
-        # Solo usar las coordenadas de las líneas para el Bounding Box
-        xs = []
-        ys = []
-        for l in lineas:
-            if l.get('type') == 'text':
-                continue
-            xs.extend([l['x1'], l['x2']])
-            ys.extend([l['y1'], l['y2']])
-            
-        if xs and ys:
-            min_x, min_y = min(xs), min(ys)
-        else:
-            min_x, min_y = 0, 0
+        # --- Normalización ---
+        min_x = min(min(l['x1'], l['x2']) for l in lineas)
+        min_y = min(min(l['y1'], l['y2']) for l in lineas)
+        
+        print(f"DEBUG: Plano normalizado. Origen: ({min_x}, {min_y})")
         
         for l in lineas:
-            if l.get('type') == 'text':
-                l['x'] -= min_x
-                l['y'] -= min_y
-            else:
-                l['x1'] -= min_x
-                l['y1'] -= min_y
-                l['x2'] -= min_x
-                l['y2'] -= min_y
+            l['x1'] -= min_x
+            l['y1'] -= min_y
+            l['x2'] -= min_x
+            l['y2'] -= min_y
             
+        print(f"DEBUG: EXITO. {len(lineas)} lineas listas para dibujar.\n")
         return lineas
         
     except Exception as e:
-        print(f"Error parsing DXF: {e}")
+        print(f"ERROR CRITICO: {e}")
         return []

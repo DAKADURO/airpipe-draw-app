@@ -28,8 +28,20 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 jwt = JWTManager(app)
 
 # ── Database ────────────────────────────────────────────────────
-basedir = os.path.abspath(os.path.dirname(__file__))
-database_url = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(basedir, 'instance', 'app.db')}")
+import sys
+if getattr(sys, 'frozen', False):
+    # Si es un EXE, la base de datos va junto al ejecutable para que sea persistente
+    basedir = os.path.dirname(sys.executable)
+else:
+    # Si es desarrollo, va en la carpeta del proyecto
+    basedir = os.path.abspath(os.path.dirname(__file__))
+
+# Asegurar que la carpeta 'instance' existe para SQLite
+instance_path = os.path.join(basedir, 'instance')
+if not os.path.exists(instance_path):
+    os.makedirs(instance_path, exist_ok=True)
+
+database_url = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(instance_path, 'app.db')}")
 
 # Railway usa "postgres://" pero SQLAlchemy 2.x requiere "postgresql://"
 if database_url.startswith("postgres://"):
@@ -37,6 +49,19 @@ if database_url.startswith("postgres://"):
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Enable SQLite WAL mode for better concurrency
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    # Only apply to sqlite connections
+    if 'sqlite' in str(type(dbapi_connection)).lower():
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.close()
 
 db.init_app(app)
 migrate = Migrate(app, db)

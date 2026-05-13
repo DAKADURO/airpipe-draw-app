@@ -172,7 +172,7 @@ export function initCanvasEvents(c) {
             state.viewState.offsetX += dx;
             state.viewState.offsetY += dy;
             state.lastMouse = { x: e.clientX, y: e.clientY };
-            scheduleRedraw();
+            scheduleRedraw(); // Panning requires full redraw
             return;
         }
 
@@ -191,7 +191,8 @@ export function initCanvasEvents(c) {
             state.angleSnapPoint = null;
         }
         
-        scheduleRedraw();
+        scheduleRedraw('activeCanvas');
+        scheduleRedraw('uiCanvas');
     });
 
     window.addEventListener('mouseup', (e) => {
@@ -268,7 +269,7 @@ export function initCanvasEvents(c) {
             if (initialPinchDist) {
                 const zoomFactor = currentDist / initialPinchDist;
                 let newScale = state.viewState.scale * zoomFactor;
-                newScale = Math.max(0.1, Math.min(newScale, 10.0));
+                newScale = Math.max(0.001, Math.min(newScale, 100.0));
                 
                 const realZoomFactor = newScale / state.viewState.scale;
                 const rect = canvas.getBoundingClientRect();
@@ -319,7 +320,8 @@ export function initCanvasEvents(c) {
             } else {
                 state.angleSnapPoint = null;
             }
-            scheduleRedraw();
+            scheduleRedraw('activeCanvas');
+            scheduleRedraw('uiCanvas');
         }
     }, {passive: false});
 
@@ -362,7 +364,7 @@ export function initCanvasEvents(c) {
         // Clamp scale multiplier
         const zoomFactor = 1 + direction * zoomSpeed;
         let newScale = state.viewState.scale * zoomFactor;
-        newScale = Math.max(0.1, Math.min(newScale, 10.0));
+        newScale = Math.max(0.001, Math.min(newScale, 100.0));
         
         const realZoomFactor = newScale / state.viewState.scale;
 

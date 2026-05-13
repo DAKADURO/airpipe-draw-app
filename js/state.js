@@ -1,6 +1,8 @@
 import { MODO } from './config.js';
+import { SpatialIndex } from './spatial_index.js';
 
 export const state = {
+    spatialIndex: new SpatialIndex(),
     modoActual: MODO.NINGUNO,
     lineaIniciada: false,
     puntoInicio: null,   // {x, y} (World Coords)
@@ -58,17 +60,23 @@ export const state = {
     canvasRect: null,
     _rafPending: false,
     _snapPointsCache: null,
+    _currentViewport: null,
+    _pendingLayers: new Set(),
 
     // Global Project Info
     proyectoActualId: null,
     proyectoActualName: ''
 };
 
+import { clearInternalMathCaches } from './math.js';
+
 export function invalidateSnapCache() {
     state._snapPointsCache = null;
     state.resultadosCalculo = null;
     state.piezasCalculo = null;
     state.valvulasCalculo = null;
+    state.spatialIndex.update(state.historial, state.bgLines, state.bgScale);
+    clearInternalMathCaches();
 }
 
 export function updateCanvasRect(canvas) {

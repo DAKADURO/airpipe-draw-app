@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { invalidateSnapCache } from '../math.js';
+import { invalidateSnapCache } from '../state.js';
 import { procesarPlano, downloadPDF, downloadPDFDirect } from '../api.js';
 import { setStatus } from './tools.js';
 import { syncIsometricUI } from './scene_panel.js';
@@ -116,7 +116,8 @@ export function setupExports(canvas) {
         if (btn2) btn2.disabled = true;
 
         try {
-            const drawingDataUrl = canvas.toDataURL('image/png');
+            const { flattenCanvases } = await import('../drawing.js');
+            const drawingDataUrl = flattenCanvases();
             let resp;
             if (state.proyectoActualId) {
                 resp = await downloadPDF(state.proyectoActualId, drawingDataUrl);

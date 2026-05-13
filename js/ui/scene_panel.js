@@ -11,7 +11,6 @@ export function cargarImagenFondo(base64Data) {
         document.getElementById('bg-opacity').value = state.bgOpacity * 100;
         document.getElementById('bg-opacity-val').textContent = `${state.bgOpacity * 100}%`;
         document.getElementById('bg-scale').value = state.bgScale;
-        document.getElementById('bg-scale-val').textContent = `${state.bgScale.toFixed(1)}x`;
         import('../drawing.js').then(d => d.redraw());
     };
     img.src = base64Data;
@@ -31,16 +30,32 @@ export async function cargarDXFFondo(file) {
 
         const res = await resp.json();
         if (res.lines) {
-            state.bgLines = res.lines;
-            state.bgImageObj = null; 
-            state.bgBase64 = null;
+            setStatus('Optimizando dibujo en segundo plano...');
             
-            const bgControls = document.getElementById('bg-controls');
-            if (bgControls) bgControls.style.display = 'block';
+            const worker = new Worker('js/workers/dxf_worker.js');
+            worker.postMessage({ lines: res.lines, bgScale: state.bgScale });
             
-            invalidateSnapCache();
-            import('../drawing.js').then(d => d.redraw());
-            setStatus(`Dibujo DXF cargado: ${res.count} líneas.`);
+            worker.onmessage = function(e) {
+                if (e.data.status === 'complete') {
+                    state.bgLines = e.data.binaryLines;
+                    state.bgImageObj = null; 
+                    state.bgBase64 = null;
+                    
+                    const bgControls = document.getElementById('bg-controls');
+                    if (bgControls) bgControls.style.display = 'block';
+                    
+                    invalidateSnapCache();
+                    import('../drawing.js').then(d => d.redraw());
+                    setStatus(`Dibujo DXF listo: ${e.data.count} líneas (Procesado en Worker).`);
+                    worker.terminate();
+                }
+            };
+
+            worker.onerror = function(err) {
+                console.error("Worker Error:", err);
+                setStatus('Error en el procesamiento paralelo del DXF.');
+                worker.terminate();
+            };
         } else {
             alert("Error al procesar el DXF: " + (res.error || "Formato no soportado"));
         }
@@ -83,13 +98,29 @@ export function setupScenePanel() {
     }
 
     const sca = document.getElementById('bg-scale');
+    const scaPreset = document.getElementById('bg-scale-preset');
+
     if (sca) {
-        sca.addEventListener('input', (e) => {
-            state.bgScale = e.target.value;
-            const val = document.getElementById('bg-scale-val');
-            if (val) val.innerText = `${state.bgScale}x`;
+        sca.addEventListener('change', (e) => {
+            let val = parseFloat(e.target.value);
+            if (isNaN(val) || val <= 0) val = 1.0;
+            state.bgScale = val;
+            sca.value = val;
+            if (scaPreset) scaPreset.value = "1"; // Reset preset if manual input
             invalidateSnapCache();
             import('../drawing.js').then(d => d.redraw());
+        });
+    }
+
+    if (scaPreset) {
+        scaPreset.addEventListener('change', (e) => {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val) && val > 0) {
+                state.bgScale = val;
+                if (sca) sca.value = val;
+                invalidateSnapCache();
+                import('../drawing.js').then(d => d.redraw());
+            }
         });
     }
 

@@ -9,7 +9,14 @@ from models import Project
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/projects')
 
-UPLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'server_uploads', 'backgrounds')
+import sys
+if getattr(sys, 'frozen', False):
+    # Si es EXE, guardar subidas en la carpeta del ejecutable
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
+UPLOADS_DIR = os.path.join(BASE_DIR, 'server_uploads', 'backgrounds')
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 def procesar_imagenes_base64(data_dict: dict) -> dict:

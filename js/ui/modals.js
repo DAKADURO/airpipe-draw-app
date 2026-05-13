@@ -17,7 +17,7 @@ export function serializeProjectData() {
         bgUrl: state.bgUrl,
         bgOpacity: state.bgOpacity,
         bgScale: state.bgScale,
-        bgLines: state.bgLines,
+        bgLines: (state.bgLines instanceof Float32Array) ? Array.from(state.bgLines) : state.bgLines,
         isIsometric: state.viewState.isIsometric,
         currentZ: state.viewState.currentZ
     };
@@ -41,7 +41,14 @@ export function restoreProjectData(data) {
     state.bgUrl = data.bgUrl || null;
     state.bgOpacity = data.bgOpacity !== undefined ? data.bgOpacity : 0.5;
     state.bgScale = data.bgScale !== undefined ? data.bgScale : 1.0;
-    state.bgLines = data.bgLines || []; 
+    
+    // Restaurar como Float32Array si es una lista de coordenadas
+    if (Array.isArray(data.bgLines) && data.bgLines.length > 0 && typeof data.bgLines[0] === 'number') {
+        state.bgLines = new Float32Array(data.bgLines);
+    } else {
+        state.bgLines = data.bgLines || []; 
+    }
+
     state.viewState.isIsometric = data.isIsometric || false;
     state.viewState.currentZ = data.currentZ || 0;
     
