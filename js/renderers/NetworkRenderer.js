@@ -71,7 +71,7 @@ export function drawNetwork(ctx, canvas, state) {
     }
 }
 
-function drawLineaInternal(ctx, x1, y1, z1, x2, y2, z2, state, isIso) {
+export function drawLineaInternal(ctx, x1, y1, z1, x2, y2, z2, state, isIso) {
     if (!isIso) {
         const dz = (z2 || 0) - (z1 || 0);
         if (Math.abs(x1 - x2) < 0.1 && Math.abs(y1 - y2) < 0.1 && Math.abs(dz) > 0.1) {
