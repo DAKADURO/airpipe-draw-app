@@ -4,42 +4,40 @@ import {PIXELS_POR_METRO } from '../config.js';
 import { setStatus } from '../ui/tools.js';
 
 export const DrawTool = {
-    onMouseDown(e, { worldPos, rawX, rawY, x, y, z }) {
+    onMouseDown(e, { x, y, z }) {
         if (!state.lineaIniciada) {
             state.lineaIniciada = true;
             state.puntoInicio = { x, y, z };
-            state._drawDragStart = { rawX, rawY };
-            state._drawJustStarted = true;
-            setStatus('Punto de inicio fijado. Arrastra o da clic para terminar la tubería.');
-        } 
+            setStatus('Punto de inicio fijado. Haz clic para terminar la tubería.');
+        } else {
+            // Terminamos la línea en el Down (AutoCAD style) o dejamos que el Up lo haga
+            // Para máxima estabilidad, usaremos el ciclo de Down/Up estándar
+        }
     },
     
-    onMouseUp(e, { worldPos, rawX, rawY, x, y, z }) {
-        if (!state.lineaIniciada) return;
+    onMouseUp(e, data) {
+        if (!state.lineaIniciada || !state.puntoInicio || !state.puntoMouse) return;
         
-        let dragged = false;
-        if (state._drawDragStart) {
-            const dist = Math.hypot(rawX - state._drawDragStart.rawX, rawY - state._drawDragStart.rawY);
-            if (dist > 15) dragged = true;
-        }
-
-        if (state._drawJustStarted && !dragged) {
-            state._drawJustStarted = false;
-            return;
-        }
+        // Si el punto final es casi igual al inicial (clic accidental), ignoramos
+        const dist = Math.hypot(state.puntoMouse.x - state.puntoInicio.x, state.puntoMouse.y - state.puntoInicio.y);
+        if (dist < 5 / state.viewState.scale) return;
 
         state.historial.push({
             tipo: 'linea',
             datos: { 
-                x1: state.puntoInicio.x, y1: state.puntoInicio.y, z1: state.puntoInicio.z,
-                x2: x, y2: y, z2: z,
+                x1: state.puntoInicio.x, y1: state.puntoInicio.y, z1: state.puntoInicio.z || 0,
+                x2: state.puntoMouse.x, y2: state.puntoMouse.y, z2: state.puntoMouse.z || 0,
                 planar_intent: !state.viewState.isIsometric
             },
         });
+        
+        // Continuidad: El punto final de esta línea es el inicial de la siguiente
+        const nextX = state.puntoMouse.x;
+        const nextY = state.puntoMouse.y;
+        const nextZ = state.puntoMouse.z || 0;
+
         invalidateSnapCache();
-        state.lineaIniciada = false;
-        state.puntoInicio = null;
-        state._drawDragStart = null;
+        state.puntoInicio = { x: nextX, y: nextY, z: nextZ };
         setStatus(`Tubería añadida. (${state.historial.filter(a => a.tipo === 'linea').length} en total)`);
         scheduleRedraw();
     },
